@@ -1,0 +1,782 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Expense Tracker</title>
+    <!-- Tailwind CSS CDN -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <!-- Chart.js CDN -->
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <style>
+        /* Custom scrollbar for transaction list */
+        #transaction-list::-webkit-scrollbar {
+            width: 6px;
+        }
+        #transaction-list::-webkit-scrollbar-track {
+            background: #f1f5f9; /* gray-100 */
+        }
+        #transaction-list::-webkit-scrollbar-thumb {
+            background: #94a3b8; /* gray-400 */
+            border-radius: 3px;
+        }
+        #transaction-list::-webkit-scrollbar-thumb:hover {
+            background: #64748b; /* gray-500 */
+        }
+
+        /* Styles for AI Modal and Custom Confirm */
+        .modal-backdrop {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background-color: rgba(0, 0, 0, 0.5);
+            z-index: 40;
+            display: none;
+            opacity: 0;
+            transition: opacity 0.3s ease;
+        }
+        .modal {
+            position: fixed;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            background-color: white;
+            padding: 1.5rem; /* p-6 */
+            border-radius: 0.75rem; /* rounded-xl */
+            box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.25);
+            z-index: 50;
+            width: 90%;
+            max-width: 500px;
+            display: none;
+            opacity: 0;
+            transition: opacity 0.3s ease, transform 0.3s ease;
+        }
+        .modal.active, .modal-backdrop.active {
+            display: block;
+            opacity: 1;
+        }
+        .modal.active {
+            transform: translate(-50%, -50%) scale(1);
+        }
+        .modal-hidden {
+            display: none;
+        }
+
+        /* Simple loading spinner */
+        .loader {
+            border: 4px solid #f3f3f3; /* Light grey */
+            border-top: 4px solid #3b82f6; /* Blue-500 */
+            border-radius: 50%;
+            width: 40px;
+            height: 40px;
+            animation: spin 1s linear infinite;
+            margin: 20px auto;
+        }
+
+        @keyframes spin {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+        }
+
+    </style>
+    <script>
+        tailwind.config = {
+            theme: {
+                extend: {
+                    fontFamily: {
+                        sans: ['Inter', 'sans-serif'],
+                    },
+                },
+            },
+        }
+    </script>
+</head>
+<body class="bg-gray-100 font-sans antialiased">
+
+    <!-- Main Container -->
+    <div class="container mx-auto max-w-6xl p-4 lg:p-8">
+        <h1 class="text-3xl font-bold text-gray-800 mb-6">Expense Tracker</h1>
+
+        <!-- Dashboard Layout -->
+        <div class="grid grid-cols-1 lg:grid-cols-3 gap-6">
+
+            <!-- Left Column: Form & Summary -->
+            <div class="lg:col-span-1 space-y-6">
+
+                <!-- Summary Cards -->
+                <div>
+                    <h2 class="text-lg font-semibold text-gray-700 mb-2">Dashboard</h2>
+                    <div class="space-y-4">
+                        <!-- Balance -->
+                        <div class="bg-white p-4 rounded-xl shadow-lg border border-gray-200">
+                            <div class="text-sm font-medium text-gray-500">Total Balance</div>
+                            <div id="balance" class="text-3xl font-bold text-gray-900 mt-1">$0.00</div>
+                        </div>
+                        <!-- Income -->
+                        <div class="bg-white p-4 rounded-xl shadow-lg border border-gray-200">
+                            <div class="text-sm font-medium text-gray-500">Total Income</div>
+                            <div id="income" class="text-2xl font-semibold text-green-600 mt-1">$0.00</div>
+                        </div>
+                        <!-- Expense -->
+                        <div class="bg-white p-4 rounded-xl shadow-lg border border-gray-200">
+                            <div class="text-sm font-medium text-gray-500">Total Expense</div>
+                            <div id="expense" class="text-2xl font-semibold text-red-600 mt-1">$0.00</div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Gemini AI Analysis Button -->
+                <div class="bg-white p-4 rounded-xl shadow-lg border border-gray-200">
+                    <button id="analyze-btn" class="w-full bg-gradient-to-r from-purple-500 to-indigo-600 text-white font-semibold py-3 px-4 rounded-md shadow-sm hover:from-purple-600 hover:to-indigo-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500 transition-all transform hover:scale-105">
+                        ✨ Analyze My Spending
+                    </button>
+                </div>
+
+                <!-- Transaction Form -->
+                <form id="transaction-form" class="bg-white p-6 rounded-xl shadow-lg border border-gray-200 space-y-4">
+                    <h2 class="text-lg font-semibold text-gray-700">Add New Transaction</h2>
+                    
+                    <!-- Description -->
+                    <div>
+                        <label for="description" class="block text-sm font-medium text-gray-700">Description</label>
+                        <input type="text" id="description" placeholder="e.g., Coffee" required class="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500">
+                    </div>
+
+                    <!-- Amount -->
+                    <div>
+                        <label for="amount" class="block text-sm font-medium text-gray-700">Amount</label>
+                        <input type="number" id="amount" placeholder="0.00" step="0.01" min="0.01" required class="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500">
+                    </div>
+
+                    <!-- Date -->
+                    <div>
+                        <label for="date" class="block text-sm font-medium text-gray-700">Date</label>
+                        <input type="date" id="date" required class="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500">
+                    </div>
+
+                    <!-- Type (Income/Expense) -->
+                    <div class="flex gap-4">
+                        <div class="flex items-center">
+                            <input id="type-income" name="type" type="radio" value="income" checked class="h-4 w-4 text-blue-600 border-gray-300 focus:ring-blue-500">
+                            <label for="type-income" class="ml-2 block text-sm font-medium text-gray-700">Income</label>
+                        </div>
+                        <div class="flex items-center">
+                            <input id="type-expense" name="type" type="radio" value="expense" class="h-4 w-4 text-blue-600 border-gray-300 focus:ring-blue-500">
+                            <label for="type-expense" class="ml-2 block text-sm font-medium text-gray-700">Expense</label>
+                        </div>
+                    </div>
+
+                    <!-- Category (for expenses) -->
+                    <div id="category-wrapper">
+                        <label for="category" class="block text-sm font-medium text-gray-700">Category</label>
+                        <select id="category" class="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500">
+                            <option>Food</option>
+                            <option>Transport</option>
+                            <option>Utilities</option>
+                            <option>Rent</option>
+                            <option>Entertainment</option>
+                            <option>Other</option>
+                        </select>
+                    </div>
+
+                    <!-- Submit Button -->
+                    <button type="submit" class="w-full bg-blue-600 text-white font-semibold py-2 px-4 rounded-md shadow-sm hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 transition-colors">
+                        Add Transaction
+                    </button>
+                </form>
+
+            </div>
+
+            <!-- Right Column: Chart & History -->
+            <div class="lg:col-span-2 space-y-6">
+
+                <!-- Chart -->
+                <div class="bg-white p-6 rounded-xl shadow-lg border border-gray-200">
+                    <h2 class="text-lg font-semibold text-gray-700 mb-4">Expense Breakdown</h2>
+                    <div class="h-64 lg:h-80 w-full flex items-center justify-center">
+                        <canvas id="expense-chart"></canvas>
+                    </div>
+                </div>
+
+                <!-- History -->
+                <div class="bg-white p-6 rounded-xl shadow-lg border border-gray-200">
+                    <h2 class="text-lg font-semibold text-gray-700 mb-4">Transaction History</h2>
+                    <div id="transaction-list" class="space-y-3 h-96 overflow-y-auto pr-2">
+                        <!-- Transactions will be injected here by JS -->
+                        <!-- Example:
+                        <div class="flex justify-between items-center p-3 bg-gray-50 rounded-lg">
+                            <div>
+                                <div class="font-medium text-gray-800">Salary</div>
+                                <div class="text-sm text-gray-500">2025-11-13</div>
+                            </div>
+                            <div class="text-green-600 font-semibold">+$2000.00</div>
+                            <button class="text-red-500 hover:text-red-700">&times;</button>
+                        </div>
+                        -->
+                    </div>
+                </div>
+
+            </div>
+
+        </div>
+    </div>
+
+    <!-- AI Analysis Modal -->
+    <div id="ai-modal-backdrop" class="modal-backdrop"></div>
+    <div id="ai-modal" class="modal">
+        <h2 class="text-xl font-semibold text-gray-800 mb-4">Financial Analysis</h2>
+        <!-- Loading Spinner -->
+        <div id="ai-loading" class="text-center">
+            <div class="loader"></div>
+            <p class="text-gray-600">Analyzing your spending... Please wait.</p>
+        </div>
+        <!-- AI Content -->
+        <div id="ai-content" class_name="text-gray-700 leading-relaxed space-y-3" style="display: none;">
+            <!-- AI response will be injected here -->
+        </div>
+        <!-- Close Button -->
+        <button id="close-ai-modal-btn" class="mt-6 w-full bg-blue-600 text-white font-semibold py-2 px-4 rounded-md shadow-sm hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 transition-colors">
+            Close
+        </button>
+    </div>
+
+    <!-- Custom Confirm Modal -->
+    <div id="confirm-modal-backdrop" class="modal-backdrop"></div>
+    <div id="confirm-modal" class="modal">
+        <h2 id="confirm-title" class="text-lg font-semibold text-gray-800 mb-4">Are you sure?</h2>
+        <p id="confirm-message" class="text-gray-600 mb-6">Do you really want to delete this transaction?</p>
+        <div class="flex justify-end gap-4">
+            <button id="confirm-cancel-btn" class="bg-gray-200 text-gray-800 font-semibold py-2 px-4 rounded-md shadow-sm hover:bg-gray-300 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-gray-400 transition-colors">
+                Cancel
+            </button>
+            <button id="confirm-ok-btn" class="bg-red-600 text-white font-semibold py-2 px-4 rounded-md shadow-sm hover:bg-red-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-red-500 transition-colors">
+                Delete
+            </button>
+        </div>
+    </div>
+
+    <script>
+        document.addEventListener('DOMContentLoaded', () => {
+            // --- DOM Elements ---
+            const balanceEl = document.getElementById('balance');
+            const incomeEl = document.getElementById('income');
+            const expenseEl = document.getElementById('expense');
+            const transactionListEl = document.getElementById('transaction-list');
+            const form = document.getElementById('transaction-form');
+            const descriptionInput = document.getElementById('description');
+            const amountInput = document.getElementById('amount');
+            const dateInput = document.getElementById('date');
+            const typeIncomeRadio = document.getElementById('type-income');
+            const typeExpenseRadio = document.getElementById('type-expense');
+            const categoryWrapper = document.getElementById('category-wrapper');
+            const categoryInput = document.getElementById('category');
+            const chartCanvas = document.getElementById('expense-chart');
+
+            // AI Modal Elements
+            const analyzeBtn = document.getElementById('analyze-btn');
+            const aiModalBackdrop = document.getElementById('ai-modal-backdrop');
+            const aiModal = document.getElementById('ai-modal');
+            const aiLoading = document.getElementById('ai-loading');
+            const aiContent = document.getElementById('ai-content');
+            const closeAiModalBtn = document.getElementById('close-ai-modal-btn');
+
+            // Custom Confirm Modal Elements
+            const confirmModalBackdrop = document.getElementById('confirm-modal-backdrop');
+            const confirmModal = document.getElementById('confirm-modal');
+            const confirmCancelBtn = document.getElementById('confirm-cancel-btn');
+            const confirmOkBtn = document.getElementById('confirm-ok-btn');
+
+            let expenseChart; // To hold the chart instance
+            let confirmCallback = null; // To store the function to run on confirm
+
+            // --- App State ---
+            let transactions = [];
+
+            // --- Functions ---
+
+            /**
+             * Load transactions from Local Storage
+             */
+            function loadTransactions() {
+                const lsTransactions = localStorage.getItem('transactions');
+                if (lsTransactions) {
+                    transactions = JSON.parse(lsTransactions);
+                }
+                updateUI();
+            }
+
+            /**
+             * Save transactions to Local Storage
+             */
+            function saveTransactions() {
+                localStorage.setItem('transactions', JSON.stringify(transactions));
+            }
+
+            /**
+             * Main update function to refresh all UI components
+             */
+            function updateUI() {
+                updateSummary();
+                displayTransactions();
+                updateChart();
+            }
+
+            /**
+             * Calculate and update the summary (balance, income, expense)
+             */
+            function updateSummary() {
+                const amounts = transactions.map(t => t.amount);
+                
+                const totalIncome = amounts
+                    .filter((_, i) => transactions[i].type === 'income')
+                    .reduce((acc, val) => acc + val, 0);
+
+                const totalExpense = amounts
+                    .filter((_, i) => transactions[i].type === 'expense')
+                    .reduce((acc, val) => acc + val, 0);
+                
+                const balance = totalIncome - totalExpense;
+
+                balanceEl.textContent = formatCurrency(balance);
+                incomeEl.textContent = formatCurrency(totalIncome, false); // No sign for total income/expense
+                expenseEl.textContent = formatCurrency(totalExpense, false); // No sign for total income/expense
+            }
+
+            /**
+             * Render the transaction list in the DOM
+             */
+            function displayTransactions() {
+                // Clear existing list
+                transactionListEl.innerHTML = '';
+
+                if (transactions.length === 0) {
+                    transactionListEl.innerHTML = '<p class="text-gray-500 text-center">No transactions yet.</p>';
+                    return;
+                }
+
+                // Sort transactions by date (newest first)
+                const sortedTransactions = [...transactions].sort((a, b) => new Date(b.date) - new Date(a.date));
+
+                sortedTransactions.forEach(t => {
+                    const isExpense = t.type === 'expense';
+                    const sign = isExpense ? '-' : '+';
+                    const colorClass = isExpense ? 'text-red-600' : 'text-green-600';
+
+                    const item = document.createElement('div');
+                    item.className = 'flex justify-between items-center p-3 bg-gray-50 rounded-lg border border-gray-200 animate-fade-in';
+                    
+                    item.innerHTML = `
+                        <div class="flex-1 min-w-0">
+                            <div class="font-medium text-gray-800 truncate">${t.description}</div>
+                            <div class="text-sm text-gray-500">${t.date} ${isExpense ? `(${t.category})` : ''}</div>
+                        </div>
+                        <div class="flex items-center">
+                            <div class="${colorClass} font-semibold mx-4">${sign}${formatCurrency(t.amount, false)}</div>
+                            <button onclick="deleteTransaction(${t.id})" class="text-gray-400 hover:text-red-600 font-bold text-lg px-2 rounded-full transition-colors">&times;</button>
+                        </div>
+                    `;
+                    transactionListEl.appendChild(item);
+                });
+            }
+
+            /**
+             * Update the expense pie chart
+             */
+            function updateChart() {
+                const expenseCategories = transactions
+                    .filter(t => t.type === 'expense')
+                    .reduce((acc, t) => {
+                        acc[t.category] = (acc[t.category] || 0) + t.amount;
+                        return acc;
+                    }, {});
+                
+                const labels = Object.keys(expenseCategories);
+                const data = Object.values(expenseCategories);
+
+                // Chart.js colors
+                const backgroundColors = [
+                    '#EF4444', // red-500
+                    '#F59E0B', // amber-500
+                    '#10B981', // emerald-500
+                    '#3B82F6', // blue-500
+                    '#8B5CF6', // violet-500
+                    '#EC4899', // pink-500
+                    '#6B7280', // gray-500
+                ];
+
+                if (expenseChart) {
+                    expenseChart.data.labels = labels;
+                    expenseChart.data.datasets[0].data = data;
+                    expenseChart.data.datasets[0].backgroundColor = backgroundColors.slice(0, labels.length);
+                    expenseChart.update();
+                } else {
+                    expenseChart = new Chart(chartCanvas.getContext('2d'), {
+                        type: 'doughnut',
+                        data: {
+                            labels: labels,
+                            datasets: [{
+                                label: 'Expenses',
+                                data: data,
+                                backgroundColor: backgroundColors,
+                                borderWidth: 0,
+                                hoverOffset: 4
+                            }]
+                        },
+                        options: {
+                            responsive: true,
+                            maintainAspectRatio: false,
+                            plugins: {
+                                legend: {
+                                    position: 'bottom',
+                                    labels: {
+                                        padding: 15,
+                                        boxWidth: 12,
+                                        font: {
+                                            size: 12
+                                        }
+                                    }
+                                },
+                                tooltip: {
+                                    callbacks: {
+                                        label: function(context) {
+                                            let label = context.label || '';
+                                            if (label) {
+                                                label += ': ';
+                                            }
+                                            if (context.parsed) {
+                                                label += formatCurrency(context.parsed);
+                                            }
+                                            return label;
+                                        }
+                                    }
+                                }
+                            },
+                            cutout: '60%'
+                        }
+                    });
+                }
+
+                // Show/hide chart based on data
+                if (labels.length === 0) {
+                    chartCanvas.style.display = 'none';
+                    if (!document.getElementById('no-expense-msg')) {
+                        const noDataMsg = document.createElement('p');
+                        noDataMsg.id = 'no-expense-msg';
+                        noDataMsg.textContent = 'No expense data to display.';
+                        noDataMsg.className = 'text-gray-500 text-center';
+                        chartCanvas.parentNode.appendChild(noDataMsg);
+                    }
+                } else {
+                    chartCanvas.style.display = 'block';
+                    const noDataMsg = document.getElementById('no-expense-msg');
+                    if (noDataMsg) {
+                        noDataMsg.remove();
+                    }
+                }
+            }
+
+            /**
+             * Handle form submission to add a new transaction
+             * @param {Event} e 
+             */
+            function handleFormSubmit(e) {
+                e.preventDefault();
+
+                // Validation
+                if (!descriptionInput.value || !amountInput.value || !dateInput.value) {
+                    // Simple alert for demo. A real app would show inline errors.
+                    // Use custom modal for alerts
+                    showConfirmModal('Invalid Input', 'Please fill in all required fields.', true);
+                    return;
+                }
+
+                const newTransaction = {
+                    id: Date.now(),
+                    description: descriptionInput.value,
+                    amount: parseFloat(amountInput.value),
+                    date: dateInput.value,
+                    type: typeIncomeRadio.checked ? 'income' : 'expense',
+                    category: typeExpenseRadio.checked ? categoryInput.value : null
+                };
+
+                transactions.push(newTransaction);
+                saveTransactions();
+                updateUI();
+
+                // Reset form
+                form.reset();
+                // Set date back to today (form.reset() clears it)
+                dateInput.value = new Date().toISOString().split('T')[0];
+                // Ensure category visibility is correct
+                toggleCategory();
+            }
+
+            /**
+             * Delete a transaction by its ID
+             * @param {number} id
+             */
+            window.deleteTransaction = function(id) {
+                // Use custom confirm modal
+                showConfirmModal('Delete Transaction', 'Are you sure you want to delete this transaction?', false, () => {
+                    transactions = transactions.filter(t => t.id !== id);
+                    saveTransactions();
+                    updateUI();
+                });
+            }
+
+            /**
+             * Show/hide the category dropdown based on transaction type
+             */
+            function toggleCategory() {
+                if (typeExpenseRadio.checked) {
+                    categoryWrapper.style.display = 'block';
+                } else {
+                    categoryWrapper.style.display = 'none';
+                }
+            }
+
+            /**
+             * Helper to format currency
+             * @param {number} value
+             * @param {boolean} includeSign
+             * @returns {string}
+             */
+            function formatCurrency(value, includeSign = true) {
+                const sign = value < 0 ? '-' : (includeSign ? '+' : '');
+                const absValue = Math.abs(value);
+                
+                // Use Intl.NumberFormat for proper formatting
+                let formatted = new Intl.NumberFormat('en-US', {
+                    style: 'currency',
+                    currency: 'USD',
+                }).format(absValue);
+
+                if (value < 0) {
+                    // For balance, the formatter adds a minus, but we want it to be ($-$)
+                    formatted = new Intl.NumberFormat('en-US', {
+                        style: 'currency',
+                        currency: 'USD',
+                        currencySign: 'accounting' // Puts $ at front, (-) at end
+                    }).format(absValue);
+                    return formatted; // e.g. ($123.45)
+                }
+                
+                // For positive balance
+                if (includeSign && value > 0) return `+${formatted}`;
+                // For income/expense totals (no sign needed, color implies)
+                if (!includeSign) return formatted;
+                // For zero balance
+                return formatted;
+            }
+
+            // --- Custom Modal Functions ---
+
+            /**
+             * Shows a custom confirm/alert modal
+             * @param {string} title - The title of the modal
+             * @param {string} message - The message body
+             * @param {boolean} isAlert - If true, hide cancel button (acts as an alert)
+             * @param {function} callback - The function to run if "OK" is clicked
+             */
+            function showConfirmModal(title, message, isAlert = false, callback = null) {
+                document.getElementById('confirm-title').textContent = title;
+                document.getElementById('confirm-message').textContent = message;
+                
+                if (isAlert) {
+                    confirmCancelBtn.style.display = 'none';
+                    confirmOkBtn.textContent = 'OK';
+                    confirmOkBtn.classList.remove('bg-red-600', 'hover:bg-red-700');
+                    confirmOkBtn.classList.add('bg-blue-600', 'hover:bg-blue-700');
+                } else {
+                    confirmCancelBtn.style.display = 'inline-flex';
+                    confirmOkBtn.textContent = 'Delete';
+                    confirmOkBtn.classList.add('bg-red-600', 'hover:bg-red-700');
+                    confirmOkBtn.classList.remove('bg-blue-600', 'hover:bg-blue-700');
+                }
+
+                confirmCallback = callback; // Store the callback
+                confirmModal.classList.add('active');
+                confirmModalBackdrop.classList.add('active');
+            }
+
+            function closeConfirmModal() {
+                confirmModal.classList.remove('active');
+                confirmModalBackdrop.classList.remove('active');
+                confirmCallback = null; // Clear callback
+            }
+
+            confirmOkBtn.addEventListener('click', () => {
+                if (confirmCallback) {
+                    confirmCallback();
+                }
+                closeConfirmModal();
+            });
+            confirmCancelBtn.addEventListener('click', closeConfirmModal);
+            confirmModalBackdrop.addEventListener('click', closeConfirmModal);
+
+
+            // --- Gemini API Functions ---
+
+            const API_KEY = ""; // Keep this empty, it will be handled by the environment
+            const API_URL = `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash-preview-09-2025:generateContent?key=${API_KEY}`;
+
+            /**
+             * Calls the Gemini API with exponential backoff
+             * @param {string} systemPrompt - The system instructions for the model
+             * @param {string} userQuery - The user's prompt (data)
+             * @param {number} maxRetries - Maximum number of retries
+             * @returns {Promise<string>} - The generated text response
+             */
+            async function callGeminiAPI(systemPrompt, userQuery, maxRetries = 3) {
+                const payload = {
+                    contents: [{ parts: [{ text: userQuery }] }],
+                    systemInstruction: {
+                        parts: [{ text: systemPrompt }]
+                    },
+                };
+
+                let attempt = 0;
+                while (attempt < maxRetries) {
+                    try {
+                        const response = await fetch(API_URL, {
+                            method: 'POST',
+                            headers: { 'Content-Type': 'application/json' },
+                            body: JSON.stringify(payload)
+                        });
+
+                        if (!response.ok) {
+                            if (response.status === 429 || response.status >= 500) {
+                                // Throttling or server error, worth retrying
+                                throw new Error(`Retryable error: ${response.status}`);
+                            } else {
+                                // Other error (e.g., 400 Bad Request), don't retry
+                                const errorData = await response.json();
+                                console.error('Non-retryable API error:', errorData);
+                                throw new Error(`API Error: ${errorData.error?.message || response.statusText}`);
+                            }
+                        }
+
+                        const result = await response.json();
+                        const candidate = result.candidates?.[0];
+
+                        if (candidate && candidate.content?.parts?.[0]?.text) {
+                            return candidate.content.parts[0].text;
+                        } else {
+                            throw new Error('Invalid response structure from API.');
+                        }
+
+                    } catch (error) {
+                        console.warn(`API call attempt ${attempt + 1} failed: ${error.message}`);
+                        attempt++;
+                        if (attempt >= maxRetries) {
+                            throw new Error(`Failed to call Gemini API after ${maxRetries} attempts. ${error.message}`);
+                        }
+                        // Exponential backoff: 1s, 2s, 4s
+                        const delay = Math.pow(2, attempt - 1) * 1000;
+                        await new Promise(resolve => setTimeout(resolve, delay));
+                    }
+                }
+                // This line should be unreachable, but as a fallback
+                throw new Error('Failed to get a response from the Gemini API.');
+            }
+
+            /**
+             * Handles the "Analyze My Spending" button click
+             */
+            async function handleAnalysisClick() {
+                // 1. Show modal and loading state
+                aiModal.classList.add('active');
+                aiModalBackdrop.classList.add('active');
+                aiLoading.style.display = 'block';
+                aiContent.style.display = 'none';
+
+                try {
+                    // 2. Prepare data for the prompt
+                    if (transactions.length === 0) {
+                        throw new Error("No data. Add transactions to get an analysis.");
+                    }
+
+                    const totalIncome = transactions
+                        .filter(t => t.type === 'income')
+                        .reduce((acc, t) => acc + t.amount, 0);
+
+                    const expenseSummary = transactions
+                        .filter(t => t.type === 'expense')
+                        .reduce((acc, t) => {
+                            acc[t.category] = (acc[t.category] || 0) + t.amount;
+                            return acc;
+                        }, {});
+                    
+                    const totalExpense = Object.values(expenseSummary).reduce((acc, val) => acc + val, 0);
+
+                    if (totalExpense === 0) {
+                         throw new Error("No expenses found. Add some expense transactions to get an analysis.");
+                    }
+
+                    // Create a string summary
+                    let expenseString = Object.entries(expenseSummary)
+                        .map(([category, amount]) => `${category}: ${formatCurrency(amount, false)}`)
+                        .join(', ');
+                    
+                    const userQuery = `
+                        Here is a summary of my recent finances:
+                        - Total Income: ${formatCurrency(totalIncome, false)}
+                        - Total Expenses: ${formatCurrency(totalExpense, false)}
+                        - Expense Breakdown: ${expenseString}
+                    `;
+
+                    const systemPrompt = `
+                        You are "FinInsight", a friendly and encouraging financial assistant.
+                        A user has provided a summary of their income and expenses.
+                        Your task is to provide a brief, insightful analysis in 2-3 short paragraphs.
+                        1. Start with a positive or neutral observation.
+                        2. Identify the top 1 or 2 spending categories.
+                        3. Provide one specific, actionable savings tip related to their highest spending category.
+                        4. Conclude with a word of encouragement.
+                        Do not use markdown formatting. Use \n for new paragraphs.
+                    `;
+
+                    // 3. Call Gemini API
+                    const aiResponse = await callGeminiAPI(systemPrompt, userQuery);
+
+                    // 4. Display response
+                    aiContent.innerHTML = aiResponse.replace(/\n/g, '<br><br>'); // Format for HTML
+                    aiLoading.style.display = 'none';
+                    aiContent.style.display = 'block';
+
+                } catch (error) {
+                    // 5. Handle errors
+                    console.error('Analysis failed:', error);
+                    aiContent.innerHTML = `<p class="text-red-600 font-medium">Analysis failed:</p><p class="text-gray-600 text-sm">${error.message}</p>`;
+                    aiLoading.style.display = 'none';
+                    aiContent.style.display = 'block';
+                }
+            }
+
+            // --- Event Listeners ---
+            form.addEventListener('submit', handleFormSubmit);
+            typeIncomeRadio.addEventListener('change', toggleCategory);
+            typeExpenseRadio.addEventListener('change', toggleCategory);
+
+            // AI Modal Listeners
+            analyzeBtn.addEventListener('click', handleAnalysisClick);
+            closeAiModalBtn.addEventListener('click', () => {
+                aiModal.classList.remove('active');
+                aiModalBackdrop.classList.remove('active');
+            });
+            aiModalBackdrop.addEventListener('click', () => {
+                aiModal.classList.remove('active');
+                aiModalBackdrop.classList.remove('active');
+            });
+
+
+            // --- Initialization ---
+            dateInput.value = new Date().toISOString().split('T')[0];
+            toggleCategory();
+            loadTransactions();
+        });
+    </script>
+</body>
+</html>
