@@ -749,7 +749,16 @@
                 } catch (error) {
                     // 5. Handle errors
                     console.error('Analysis failed:', error);
-                    aiContent.innerHTML = `<p class="text-red-600 font-medium">Analysis failed:</p><p class="text-gray-600 text-sm">${error.message}</p>`;
+                    
+                    // Add more user-friendly error handling
+                    let userErrorMessage;
+                    if (error.message.includes('unregistered callers')) {
+                        userErrorMessage = "Sorry, the connection to the AI service failed due to a platform authentication issue. This is likely a temporary environment problem. Please try again later. The rest of the app is still working!";
+                    } else {
+                        userErrorMessage = error.message;
+                    }
+                    
+                    aiContent.innerHTML = `<p class="text-red-600 font-medium">Analysis Failed</p><p class="text-gray-600 text-sm mt-2">${userErrorMessage}</p>`;
                     aiLoading.style.display = 'none';
                     aiContent.style.display = 'block';
                 }
