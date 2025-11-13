@@ -41,7 +41,7 @@
             line-height: 1.25rem; /* leading-5 */
         }
 
-        /* NEW: Styles for Edit Modal */
+        /* Styles for Edit Modal */
         #edit-modal-overlay {
             position: fixed;
             top: 0;
@@ -201,6 +201,22 @@
                     </div>
                 </div>
 
+                <!-- NEW: Data Backup Section -->
+                <div class="bg-white p-6 rounded-xl shadow-lg border border-gray-200 space-y-4">
+                    <h2 class="text-lg font-semibold text-gray-700">Data Backup</h2>
+                    <p class="text-sm text-gray-600">Save your data to a file or load a previous backup. Importing will overwrite existing data.</p>
+                    <div class="flex flex-col sm:flex-row gap-4">
+                        <button id="export-data" class="flex-1 w-full bg-blue-600 text-white font-semibold py-2 px-4 rounded-md shadow-sm hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 transition-colors">
+                            Export Data
+                        </button>
+                        <button id="import-data-button" class="flex-1 w-full bg-gray-600 text-white font-semibold py-2 px-4 rounded-md shadow-sm hover:bg-gray-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-gray-500 transition-colors">
+                            Import Data
+                        </button>
+                        <!-- Hidden file input, triggered by the button -->
+                        <input type="file" id="import-file-input" class="hidden" accept=".json">
+                    </div>
+                </div>
+
             </div>
 
             <!-- Right Column: Chart & History -->
@@ -312,6 +328,11 @@
             const budgetCategoryInput = document.getElementById('budget-category');
             const budgetAmountInput = document.getElementById('budget-amount');
             const budgetStatusListEl = document.getElementById('budget-status-list');
+            
+            // NEW: Backup Elements
+            const exportDataBtn = document.getElementById('export-data');
+            const importDataBtn = document.getElementById('import-data-button');
+            const importFileInput = document.getElementById('import-file-input');
 
             // Edit Modal Elements
             const editModalOverlay = document.getElementById('edit-modal-overlay');
@@ -649,6 +670,82 @@
                 budgetAmountInput.value = '';
             }
 
+            // --- NEW: Backup/Restore Functions ---
+
+            /**
+             * Handles exporting data to a JSON file
+             */
+            function handleExportData() {
+                // Bundle all data into one object
+                const dataToExport = {
+                    transactions: transactions,
+                    budgets: budgets
+                };
+
+                const dataStr = JSON.stringify(dataToExport, null, 2); // Pretty-print JSON
+                const blob = new Blob([dataStr], { type: 'application/json' });
+                const url = URL.createObjectURL(blob);
+
+                const a = document.createElement('a'); // Create a temporary link
+                a.href = url;
+                a.download = `expense_tracker_backup_${new Date().toISOString().split('T')[0]}.json`;
+                document.body.appendChild(a);
+                a.click(); // Trigger download
+                document.body.removeChild(a); // Clean up
+                URL.revokeObjectURL(url);
+            }
+
+            /**
+             * Handles the file selection for import
+             * @param {Event} e
+             */
+            function handleFileImport(e) {
+                const file = e.target.files[0];
+                if (!file) {
+                    return; // No file selected
+                }
+
+                const reader = new FileReader();
+                reader.onload = (event) => {
+                    try {
+                        const data = JSON.parse(event.target.result);
+                        
+                        // Validate data structure
+                        if (!data || !Array.isArray(data.transactions) || typeof data.budgets !== 'object') {
+                            alert('Invalid backup file. Please make sure the file is correct.');
+                            return;
+                        }
+
+                        if (confirm('Are you sure you want to import this data? This will OVERWRITE your current transactions and budgets.')) {
+                            // Overwrite state with imported data
+                            transactions = data.transactions;
+                            budgets = data.budgets;
+                            
+                            // Save to localStorage and update UI
+                            saveTransactions();
+                            saveBudgets();
+                            updateUI();
+                            
+                            alert('Data imported successfully!');
+                        }
+                    } catch (error) {
+                        console.error("Error parsing imported file:", error);
+                        alert('Error importing file. It may be corrupted or in the wrong format.');
+                    } finally {
+                        // Reset file input so user can import same file again if needed
+                        importFileInput.value = '';
+                    }
+                };
+                
+                reader.onerror = () => {
+                    console.error("Error reading file:", reader.error);
+                    alert('Failed to read the file.');
+                };
+
+                reader.readAsText(file);
+            }
+
+
             /**
              * Delete a transaction by its ID
              * @param {number} id
@@ -785,6 +882,14 @@
             editTypeIncomeRadio.addEventListener('change', toggleEditCategory);
             editTypeExpenseRadio.addEventListener('change', toggleEditCategory);
             
+            // NEW: Backup Listeners
+            exportDataBtn.addEventListener('click', handleExportData);
+            importDataBtn.addEventListener('click', () => {
+                // Trigger hidden file input
+                importFileInput.click();
+            });
+            importFileInput.addEventListener('change', handleFileImport);
+
             // --- Initialization ---
             dateInput.value = new Date().toISOString().split('T')[0];
             toggleCategory();
