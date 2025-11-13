@@ -34,7 +34,9 @@
         .progress-bar-fill {
             height: 100%;
             transition: width 0.3s ease-in-out;
-/* ... existing code ... -->
+            text-align: center;
+            color: white;
+            font-size: 0.75rem; /* text-xs */
             font-weight: 500; /* font-medium */
             line-height: 1.25rem; /* leading-5 */
         }
@@ -69,7 +71,154 @@
     </style>
     <script>
         tailwind.config = {
-/* ... existing code ... -->
+            theme: {
+                extend: {
+                    fontFamily: {
+                        sans: ['Inter', 'sans-serif'],
+                    },
+                },
+            },
+        };
+    </script>
+</head>
+<body class="bg-gray-100 font-sans">
+
+    <div class="container mx-auto p-4 md:p-8 max-w-6xl">
+        <!-- Header -->
+        <header class="mb-8">
+            <h1 class="text-3xl font-bold text-gray-800">Expense Tracker Dashboard</h1>
+            <p class="text-gray-600">Welcome! Manage your finances efficiently.</p>
+        </header>
+
+        <!-- Main Content Grid -->
+        <div class="grid grid-cols-1 lg:grid-cols-3 gap-6">
+
+            <!-- Left Column: Forms & Budgets -->
+            <div class="lg:col-span-1 space-y-6">
+
+                <!-- Summary Cards -->
+                <div>
+                    <div class="grid grid-cols-1 md:grid-cols-3 lg:grid-cols-1 gap-4">
+                        <!-- Total Balance -->
+                        <div class="bg-white p-4 rounded-xl shadow-lg border border-gray-200">
+                            <h3 class="text-sm font-medium text-gray-500">Total Balance</h3>
+                            <div id="balance" class="text-2xl font-semibold text-gray-800 mt-1">$0.00</div>
+                        </div>
+                        <!-- Total Income -->
+                        <div class="bg-white p-4 rounded-xl shadow-lg border border-gray-200">
+                            <h3 class="text-sm font-medium text-gray-500">Total Income</h3>
+                            <div id="income" class="text-2xl font-semibold text-green-600 mt-1">$0.00</div>
+                        </div>
+                        <!-- Total Expense -->
+                        <div class="bg-white p-4 rounded-xl shadow-lg border border-gray-200">
+                            <h3 class="text-sm font-medium text-gray-500">Total Expense</h3>
+                            <div id="expense" class="text-2xl font-semibold text-red-600 mt-1">$0.00</div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Budgeting Form -->
+                <form id="budget-form" class="bg-white p-6 rounded-xl shadow-lg border border-gray-200 space-y-4">
+                    <h2 class="text-lg font-semibold text-gray-700">Set Your Budgets</h2>
+                    <div>
+                        <label for="budget-category" class="block text-sm font-medium text-gray-700">Category</label>
+                        <select id="budget-category" class="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500">
+                            <!-- Options are same as expense form -->
+                            <option>Food</option>
+                            <option>Transport</option>
+                            <option>Utilities</option>
+                            <option>Rent</option>
+                            <option>Entertainment</option>
+                            <option>Other</option>
+                        </select>
+                    </div>
+                    <div>
+                        <label for="budget-amount" class="block text-sm font-medium text-gray-700">Budget Amount</label>
+                        <input type="number" id="budget-amount" placeholder="200.00" step="0.01" min="0.01" required class="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500">
+                    </div>
+                    <button type="submit" class="w-full bg-green-600 text-white font-semibold py-2 px-4 rounded-md shadow-sm hover:bg-green-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-green-500 transition-colors">
+                        Set Budget
+                    </button>
+                </form>
+
+                <!-- Transaction Form -->
+                <form id="transaction-form" class="bg-white p-6 rounded-xl shadow-lg border border-gray-200 space-y-4">
+                    <h2 class="text-lg font-semibold text-gray-700">Add New Transaction</h2>
+                    
+                    <!-- Type -->
+                    <div class="flex gap-4">
+                        <div class="flex items-center">
+                            <input id="type-income" name="type" type="radio" value="income" class="h-4 w-4 text-blue-600 border-gray-300 focus:ring-blue-500" checked>
+                            <label for="type-income" class="ml-2 block text-sm font-medium text-gray-700">Income</label>
+                        </div>
+                        <div class="flex items-center">
+                            <input id="type-expense" name="type" type="radio" value="expense" class="h-4 w-4 text-blue-600 border-gray-300 focus:ring-blue-500">
+                            <label for="type-expense" class="ml-2 block text-sm font-medium text-gray-700">Expense</label>
+                        </div>
+                    </div>
+
+                    <!-- Description -->
+                    <div>
+                        <label for="description" class="block text-sm font-medium text-gray-700">Description</label>
+                        <input type="text" id="description" placeholder="e.g. Coffee" required class="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500">
+                    </div>
+
+                    <!-- Amount -->
+                    <div>
+                        <label for="amount" class="block text-sm font-medium text-gray-700">Amount</label>
+                        <input type="number" id="amount" placeholder="20.00" step="0.01" min="0.01" required class="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500">
+                    </div>
+
+                    <!-- Date -->
+                    <div>
+                        <label for="date" class="block text-sm font-medium text-gray-700">Date</label>
+                        <input type="date" id="date" required class="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500">
+                    </div>
+
+                    <!-- Category (for expenses) -->
+                    <div id="category-wrapper">
+                        <label for="category" class="block text-sm font-medium text-gray-700">Category</label>
+                        <select id="category" class="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500">
+                            <option>Food</option>
+                            <option>Transport</option>
+                            <option>Utilities</option>
+                            <option>Rent</option>
+                            <option>Entertainment</option>
+                            <option>Other</option>
+                        </select>
+                    </div>
+                    
+                    <button type="submit" class="w-full bg-blue-600 text-white font-semibold py-2 px-4 rounded-md shadow-sm hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 transition-colors">
+                        Add Transaction
+                    </button>
+                </form>
+
+                <!-- Budget Status Section -->
+                <div class="bg-white p-6 rounded-xl shadow-lg border border-gray-200 space-y-4">
+                    <h2 class="text-lg font-semibold text-gray-700">Budget Status</h2>
+                    <div id="budget-status-list" class="space-y-4">
+                        <!-- Budget progress bars will be injected here -->
+                    </div>
+                </div>
+
+            </div>
+
+            <!-- Right Column: Chart & History -->
+            <div class="lg:col-span-2 space-y-6">
+
+                <!-- Chart -->
+                <div class="bg-white p-6 rounded-xl shadow-lg border border-gray-200">
+                    <h2 class="text-lg font-semibold text-gray-700 mb-4">Expense Breakdown</h2>
+                    <div class="h-64 md:h-80 relative">
+                        <canvas id="expense-chart"></canvas>
+                    </div>
+                </div>
+
+                <!-- Transaction History -->
+                <div class="bg-white p-6 rounded-xl shadow-lg border border-gray-200">
+                    <h2 class="text-lg font-semibold text-gray-700 mb-4">Transaction History</h2>
+                    <div id="transaction-list" class="space-y-3 max-h-96 overflow-y-auto pr-2">
+                        <!-- Transactions will be injected here -->
                     </div>
                 </div>
 
@@ -78,8 +227,8 @@
         </div>
     </div>
 
-    <!-- NEW: Edit Transaction Modal -->
-    <div id="edit-modal-overlay" class="visible"> <!-- Start as visible for layout, JS will hide it -->
+    <!-- Edit Transaction Modal -->
+    <div id="edit-modal-overlay"> <!-- Start as hidden -->
         <div id="edit-modal-content" class="bg-white w-full max-w-lg p-6 rounded-xl shadow-2xl border border-gray-200 space-y-4">
             <div class="flex justify-between items-center">
                 <h2 class="text-lg font-semibold text-gray-700">Edit Transaction</h2>
@@ -144,12 +293,27 @@
 
     <script>
         document.addEventListener('DOMContentLoaded', () => {
-/* ... existing code ... -->
+            // --- DOM Elements ---
+            const form = document.getElementById('transaction-form');
+            const descriptionInput = document.getElementById('description');
+            const amountInput = document.getElementById('amount');
+            const dateInput = document.getElementById('date');
+            const transactionListEl = document.getElementById('transaction-list');
+            const balanceEl = document.getElementById('balance');
+            const incomeEl = document.getElementById('income');
+            const expenseEl = document.getElementById('expense');
+            const typeIncomeRadio = document.getElementById('type-income');
+            const typeExpenseRadio = document.getElementById('type-expense');
+            const categoryWrapper = document.getElementById('category-wrapper');
+            const categoryInput = document.getElementById('category');
+            const chartCanvas = document.getElementById('expense-chart');
+            // Budget elements
+            const budgetForm = document.getElementById('budget-form');
             const budgetCategoryInput = document.getElementById('budget-category');
             const budgetAmountInput = document.getElementById('budget-amount');
             const budgetStatusListEl = document.getElementById('budget-status-list');
 
-            // NEW: Edit Modal Elements
+            // Edit Modal Elements
             const editModalOverlay = document.getElementById('edit-modal-overlay');
             const editModalCloseBtn = document.getElementById('edit-modal-close');
             const editForm = document.getElementById('edit-transaction-form');
@@ -164,7 +328,93 @@
 
 
             let expenseChart; // To hold the chart instance
-/* ... existing code ... -->
+
+            // --- App State ---
+            let transactions = [];
+            let budgets = {}; // To store budget data, e.g., { Food: 500, Transport: 100 }
+
+            // --- Functions ---
+
+            /**
+             * Load data from Local Storage
+             */
+            function loadData() {
+                const lsTransactions = localStorage.getItem('transactions');
+                if (lsTransactions) {
+                    transactions = JSON.parse(lsTransactions);
+                }
+                
+                // Load budgets
+                const lsBudgets = localStorage.getItem('budgets');
+                if (lsBudgets) {
+                    budgets = JSON.parse(lsBudgets);
+                }
+
+                updateUI();
+            }
+
+            /**
+             * Save data to Local Storage
+             */
+            function saveTransactions() {
+                localStorage.setItem('transactions', JSON.stringify(transactions));
+            }
+            
+            function saveBudgets() {
+                localStorage.setItem('budgets', JSON.stringify(budgets));
+            }
+
+
+            /**
+             * Main update function to refresh all UI components
+             */
+            function updateUI() {
+                updateSummary();
+                displayTransactions();
+                updateChart();
+                updateBudgetStatus(); // Update budget UI
+            }
+
+            /**
+             * Calculate and update the summary (balance, income, expense)
+             */
+            function updateSummary() {
+                const totalIncome = transactions
+                    .filter(t => t.type === 'income')
+                    .reduce((acc, t) => acc + t.amount, 0);
+
+                const totalExpense = transactions
+                    .filter(t => t.type === 'expense')
+                    .reduce((acc, t) => acc + t.amount, 0);
+
+                const totalBalance = totalIncome - totalExpense;
+
+                balanceEl.textContent = formatCurrency(totalBalance);
+                incomeEl.textContent = formatCurrency(totalIncome);
+                expenseEl.textContent = formatCurrency(totalExpense, false); // Don't use minus sign here
+            }
+
+            /**
+             * Display all transactions in the list
+             */
+            function displayTransactions() {
+                transactionListEl.innerHTML = '';
+
+                if (transactions.length === 0) {
+                    transactionListEl.innerHTML = '<p class="text-gray-500 text-center">No transactions yet.</p>';
+                    return;
+                }
+
+                // Sort transactions by date (newest first)
+                const sortedTransactions = [...transactions].sort((a, b) => new Date(b.date) - new Date(a.date));
+
+                sortedTransactions.forEach(t => {
+                    const isExpense = t.type === 'expense';
+                    const sign = isExpense ? '-' : '+';
+                    const colorClass = isExpense ? 'text-red-600' : 'text-green-600';
+
+                    const item = document.createElement('div');
+                    item.className = 'flex items-center justify-between bg-gray-50 p-3 rounded-lg border border-gray-200';
                     item.innerHTML = `
                         <div class="flex-1 min-w-0">
                             <div class="font-medium text-gray-800 truncate">${t.description}</div>
@@ -172,34 +422,234 @@
                         </div>
                         <div class="flex items-center">
                             <div class="${colorClass} font-semibold mx-4">${sign}${formatCurrency(t.amount, false)}</div>
-                            <!-- NEW: Edit Button -->
+                            <!-- Edit Button -->
                             <button onclick="openEditModal(${t.id})" class="text-gray-400 hover:text-blue-600 font-bold text-lg px-2 rounded-full transition-colors" title="Edit">✎</button>
+                            <!-- Delete Button -->
                             <button onclick="deleteTransaction(${t.id})" class="text-gray-400 hover:text-red-600 font-bold text-lg px-2 rounded-full transition-colors" title="Delete">&times;</button>
                         </div>
                     `;
                     transactionListEl.appendChild(item);
-/* ... existing code ... -->
+                });
+            }
+
+            /**
+             * Update the expense pie chart
+             */
+            function updateChart() {
+                const expenseData = transactions
+                    .filter(t => t.type === 'expense')
+                    .reduce((acc, t) => {
+                        acc[t.category] = (acc[t.category] || 0) + t.amount;
+                        return acc;
+                    }, {});
+
+                const labels = Object.keys(expenseData);
+                const data = Object.values(expenseData);
+
+                // Chart.js colors
+                const backgroundColors = [
+                    '#EF4444', // red-500
+                    '#3B82F6', // blue-500
+                    '#22C55E', // green-500
+                    '#EAB308', // yellow-500
+                    '#A855F7', // purple-500
+                    '#EC4899', // pink-500
+                    '#F97316', // orange-500
+                ];
+
+                // Destroy old chart instance if it exists
+                if (expenseChart) {
+                    expenseChart.destroy();
+                }
+
+                // Remove 'no data' message if it exists
+                const noDataMsg = chartCanvas.parentNode.querySelector('.no-data-msg');
+                if (noDataMsg) noDataMsg.remove();
+                
+                chartCanvas.style.display = 'block';
+
+                if (labels.length === 0) {
+                    // Display a message if no expense data
+                    chartCanvas.style.display = 'none';
+                    const noDataMsg = document.createElement('p');
+                    noDataMsg.textContent = 'No expense data to display.';
+                    noDataMsg.className = 'text-gray-500 text-center no-data-msg absolute inset-0 flex items-center justify-center';
+                    chartCanvas.parentNode.appendChild(noDataMsg);
+                    return;
+                }
+
+                // Create new chart
+                const ctx = chartCanvas.getContext('2d');
+                expenseChart = new Chart(ctx, {
+                    type: 'doughnut',
+                    data: {
+                        labels: labels,
+                        datasets: [{
+                            data: data,
+                            backgroundColor: backgroundColors.slice(0, labels.length),
+                            borderColor: '#ffffff',
+                            borderWidth: 2,
+                        }]
+                    },
+                    options: {
+                        responsive: true,
+                        maintainAspectRatio: false,
+                        plugins: {
+                            legend: {
+                                position: 'bottom',
+                                labels: {
+                                    padding: 15,
+                                    boxWidth: 12,
+                                    font: {
+                                        size: 14
+                                    }
+                                }
+                            },
+                            tooltip: {
+                                callbacks: {
+                                    label: function(context) {
+                                        let label = context.label || '';
+                                        if (label) {
+                                            label += ': ';
+                                        }
+                                        if (context.parsed) {
+                                            label += formatCurrency(context.parsed);
+                                        }
+                                        return label;
+                                    }
+                                }
+                            }
+                        }
+                    }
+                });
+            }
+
+            /**
+             * Update the budget status progress bars
+             */
+            function updateBudgetStatus() {
+                budgetStatusListEl.innerHTML = ''; // Clear old list
+
+                if (Object.keys(budgets).length === 0) {
+                    budgetStatusListEl.innerHTML = '<p class="text-gray-500 text-center">No budgets set.</p>';
+                    return;
+                }
+
+                for (const category in budgets) {
+                    const budgetAmount = budgets[category];
+                    
+                    // Calculate total spent in this category
+                    const spentAmount = transactions
+                        .filter(t => t.type === 'expense' && t.category === category)
+                        .reduce((acc, t) => acc + t.amount, 0);
+                    
+                    const remainingAmount = budgetAmount - spentAmount;
+                    const percentage = (spentAmount / budgetAmount) * 100;
+
+                    let progressBarColor = 'bg-green-500'; // Good
+                    if (percentage > 75) progressBarColor = 'bg-yellow-500'; // Warning
+                    if (percentage >= 100) progressBarColor = 'bg-red-500'; // Over budget
+
+                    const item = document.createElement('div');
+                    item.innerHTML = `
+                        <div class="flex justify-between items-center mb-1">
+                            <span class="text-sm font-medium text-gray-700">${category}</span>
+                            <span class="text-sm font-medium text-gray-600">${formatCurrency(spentAmount, false)} / ${formatCurrency(budgetAmount, false)}</span>
+                        </div>
+                        <div class="progress-bar">
+                            <div class="progress-bar-fill ${progressBarColor}" style="width: ${Math.min(percentage, 100)}%;">
+                                ${percentage > 15 ? `${percentage.toFixed(0)}%` : ''}
+                            </div>
+                        </div>
+                        ${remainingAmount < 0 ? 
+                            `<div class="text-xs text-red-600 font-medium text-right mt-1">Over budget by ${formatCurrency(Math.abs(remainingAmount), false)}</div>` : 
+                            `<div class="text-xs text-gray-500 text-right mt-1">${formatCurrency(remainingAmount, false)} remaining</div>`
+                        }
+                    `;
+                    budgetStatusListEl.appendChild(item);
                 }
             }
 
+
             /**
-/* ... existing code ... -->
-                 * NEW: Handle budget form submission
-                 * @param {Event} e
-                 */
-/* ... existing code ... -->
-                budgetAmountInput.value = '';
+             * Handle form submission to add a new transaction
+             * @param {Event} e
+             */
+            function handleFormSubmit(e) {
+                e.preventDefault();
+
+                const description = descriptionInput.value;
+                const amount = parseFloat(amountInput.value);
+                const date = dateInput.value;
+                const type = typeIncomeRadio.checked ? 'income' : 'expense';
+                const category = (type === 'expense') ? categoryInput.value : 'N/A';
+
+                if (!description || !amount || !date) {
+                    alert('Please fill in all fields.');
+                    return;
+                }
+                
+                // Create new transaction object
+                const newTransaction = {
+                    id: Date.now(), // Simple unique ID
+                    description,
+                    amount,
+                    date,
+                    type,
+                    category
+                };
+
+                // Add to state
+                transactions.push(newTransaction);
+                
+                saveTransactions(); // Save to local storage
+                updateUI(); // Refresh the UI
+
+                // Reset form
+                form.reset();
+                dateInput.value = new Date().toISOString().split('T')[0];
+                toggleCategory();
             }
 
             /**
-/* ... existing code ... -->
+             * Handle budget form submission
+             * @param {Event} e
+             */
+            function handleBudgetFormSubmit(e) {
+                e.preventDefault();
+
+                const category = budgetCategoryInput.value;
+                const amount = parseFloat(budgetAmountInput.value);
+
+                if (!amount || amount <= 0) {
+                    alert('Please enter a valid budget amount.');
+                    return;
+                }
+
+                // Set or update the budget
+                budgets[category] = amount;
+                
+                saveBudgets();
+                updateUI(); // Refresh UI to show new budget status
+
+                // Clear input
+                budgetAmountInput.value = '';
+            }
+
+section.
+            /**
+             * Delete a transaction by its ID
+             * @param {number} id
+             */
+            window.deleteTransaction = function(id) { // <-- FIXED: Attached to window
+                if (confirm('Are you sure you want to delete this transaction?')) {
                     transactions = transactions.filter(t => t.id !== id);
                     saveTransactions();
                     updateUI();
                 }
             }
 
-            // --- NEW: Edit Modal Functions ---
+            // --- Edit Modal Functions ---
 
             /**
              * Open and populate the edit modal for a specific transaction
@@ -280,13 +730,38 @@
 
             /**
              * Helper function to format currency
-/* ... existing code ... -->
+             * @param {number} amount
+             * @param {boolean} [useMinus=true] - Whether to show minus sign for negative numbers
+             */
+            function formatCurrency(amount, useMinus = true) {
+                const options = { style: 'currency', currency: 'USD' };
+                let formatted = new Intl.NumberFormat('en-US', options).format(Math.abs(amount));
+                
+                if (amount < 0 && useMinus) {
+                    formatted = '-' + formatted;
+                }
+                return formatted;
+            }
+
+            /**
+             * Toggle visibility of category input based on transaction type
+             */
+            function toggleCategory() {
+                if (typeIncomeRadio.checked) {
+                    categoryWrapper.style.display = 'none';
+                } else {
+                    categoryWrapper.style.display = 'block';
+                }
+            }
+            
+
+            // --- Event Listeners ---
             form.addEventListener('submit', handleFormSubmit);
-            budgetForm.addEventListener('submit', handleBudgetFormSubmit); // NEW: Add listener for budget form
+            budgetForm.addEventListener('submit', handleBudgetFormSubmit); 
             typeIncomeRadio.addEventListener('change', toggleCategory);
             typeExpenseRadio.addEventListener('change', toggleCategory);
 
-            // NEW: Edit Modal Listeners
+            // Edit Modal Listeners
             editForm.addEventListener('submit', handleEditSubmit);
             editModalCloseBtn.addEventListener('click', closeEditModal);
             editModalOverlay.addEventListener('click', (e) => {
@@ -300,7 +775,7 @@
             // --- Initialization ---
             dateInput.value = new Date().toISOString().split('T')[0];
             toggleCategory();
-            closeEditModal(); // Ensure modal is hidden on load
+            // closeEditModal(); // Modal starts hidden by default (no .visible class)
             loadData();
         });
     </script>
