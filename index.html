@@ -3,27 +3,73 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Expense Tracker</title>
+    <title>Expense Tracker Dashboard</title>
     <!-- Tailwind CSS CDN -->
     <script src="https://cdn.tailwindcss.com"></script>
     <!-- Chart.js CDN -->
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
     <style>
-        /* Custom scrollbar for transaction list */
-        #transaction-list::-webkit-scrollbar {
+        /* Custom scrollbar */
+        ::-webkit-scrollbar {
             width: 6px;
+            height: 6px;
         }
-        #transaction-list::-webkit-scrollbar-track {
-            background: #f1f5f9; /* gray-100 */
+        ::-webkit-scrollbar-track {
+            background: #f1f5f9; /* slate-100 */
+            border-radius: 10px;
         }
-        #transaction-list::-webkit-scrollbar-thumb {
-            background: #94a3b8; /* gray-400 */
-            border-radius: 3px;
+        ::-webkit-scrollbar-thumb {
+            background: #cbd5e1; /* slate-300 */
+            border-radius: 10px;
         }
-        #transaction-list::-webkit-scrollbar-thumb:hover {
-            background: #64748b; /* gray-500 */
+        ::-webkit-scrollbar-thumb:hover {
+            background: #94a3b8; /* slate-400 */
         }
-
+        body {
+            font-family: 'Inter', sans-serif;
+        }
+        /* Modal styles */
+        .modal-overlay {
+            transition: opacity 0.3s ease;
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background-color: rgba(0, 0, 0, 0.5);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            z-index: 50;
+            opacity: 0;
+            visibility: hidden;
+        }
+        .modal-content {
+            transition: transform 0.3s ease;
+            transform: translateY(-20px);
+            opacity: 0;
+        }
+        .modal-overlay.visible {
+            opacity: 1;
+            visibility: visible;
+        }
+        .modal-overlay.visible .modal-content {
+            transform: translateY(0);
+            opacity: 1;
+        }
+        /* Loader */
+        .loader {
+            border: 4px solid #f3f3f3;
+            border-top: 4px solid #3b82f6;
+            border-radius: 50%;
+            width: 40px;
+            height: 40px;
+            animation: spin 1s linear infinite;
+        }
+        @keyframes spin {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+        }
         /* Styling for progress bar */
         .progress-bar {
             background-color: #e5e7eb; /* gray-200 */
@@ -40,34 +86,6 @@
             font-weight: 500; /* font-medium */
             line-height: 1.25rem; /* leading-5 */
         }
-
-        /* Styles for Edit Modal */
-        #edit-modal-overlay {
-            position: fixed;
-            top: 0;
-            left: 0;
-            width: 100%;
-            height: 100%;
-            background-color: rgba(0, 0, 0, 0.5); /* Semi-transparent black */
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            z-index: 50;
-            opacity: 0;
-            visibility: hidden;
-            transition: opacity 0.2s ease, visibility 0.2s ease;
-        }
-        #edit-modal-content {
-            transform: scale(0.95);
-            transition: transform 0.2s ease;
-        }
-        #edit-modal-overlay.visible {
-            opacity: 1;
-            visibility: visible;
-        }
-        #edit-modal-overlay.visible #edit-modal-content {
-            transform: scale(1);
-        }
     </style>
     <script>
         tailwind.config = {
@@ -81,819 +99,925 @@
         };
     </script>
 </head>
-<body class="bg-gray-100 font-sans">
+<body class="bg-slate-100">
 
-    <div class="container mx-auto p-4 md:p-8 max-w-6xl">
-        <!-- Header -->
-        <header class="mb-8">
-            <h1 class="text-3xl font-bold text-gray-800">Expense Tracker Dashboard</h1>
-            <p class="text-gray-600">Welcome! Manage your finances efficiently.</p>
-        </header>
-
-        <!-- Main Content Grid -->
-        <div class="grid grid-cols-1 lg:grid-cols-3 gap-6">
-
-            <!-- Left Column: Forms & Budgets -->
-            <div class="lg:col-span-1 space-y-6">
-
-                <!-- Summary Cards -->
-                <div>
-                    <div class="grid grid-cols-1 md:grid-cols-3 lg:grid-cols-1 gap-4">
-                        <!-- Total Balance -->
-                        <div class="bg-white p-4 rounded-xl shadow-lg border border-gray-200">
-                            <h3 class="text-sm font-medium text-gray-500">Total Balance</h3>
-                            <div id="balance" class="text-2xl font-semibold text-gray-800 mt-1">$0.00</div>
-                        </div>
-                        <!-- Total Income -->
-                        <div class="bg-white p-4 rounded-xl shadow-lg border border-gray-200">
-                            <h3 class="text-sm font-medium text-gray-500">Total Income</h3>
-                            <div id="income" class="text-2xl font-semibold text-green-600 mt-1">$0.00</div>
-                        </div>
-                        <!-- Total Expense -->
-                        <div class="bg-white p-4 rounded-xl shadow-lg border border-gray-200">
-                            <h3 class="text-sm font-medium text-gray-500">Total Expense</h3>
-                            <div id="expense" class="text-2xl font-semibold text-red-600 mt-1">$0.00</div>
-                        </div>
-                    </div>
-                </div>
-
-                <!-- Budgeting Form -->
-                <form id="budget-form" class="bg-white p-6 rounded-xl shadow-lg border border-gray-200 space-y-4">
-                    <h2 class="text-lg font-semibold text-gray-700">Set Your Budgets</h2>
-                    <div>
-                        <label for="budget-category" class="block text-sm font-medium text-gray-700">Category</label>
-                        <select id="budget-category" class="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500">
-                            <!-- Options are same as expense form -->
-                            <option>Food</option>
-                            <option>Transport</option>
-                            <option>Utilities</option>
-                            <option>Rent</option>
-                            <option>Entertainment</option>
-                            <option>Other</option>
-                        </select>
-                    </div>
-                    <div>
-                        <label for="budget-amount" class="block text-sm font-medium text-gray-700">Budget Amount</label>
-                        <input type="number" id="budget-amount" placeholder="200.00" step="0.01" min="0.01" required class="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500">
-                    </div>
-                    <button type="submit" class="w-full bg-green-600 text-white font-semibold py-2 px-4 rounded-md shadow-sm hover:bg-green-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-green-500 transition-colors">
-                        Set Budget
+    <div class="flex flex-col lg:flex-row min-h-screen">
+        
+        <!-- Sidebar -->
+        <aside class="w-full lg:w-80 bg-white p-6 shadow-lg lg:min-h-screen flex flex-col">
+            <h1 class="text-2xl font-bold text-slate-800 mb-6">Filters & Tools</h1>
+            
+            <!-- Data Backup Section -->
+            <div class="mb-6 border-b pb-6">
+                <h3 class="font-semibold text-slate-700 mb-3">Data Backup</h3>
+                <p class="text-sm text-gray-600 mb-3">Save your data or load a previous backup. Importing will overwrite existing data.</p>
+                <div class="flex gap-2">
+                    <button id="export-data" class="flex-1 w-full bg-blue-600 text-white font-semibold py-2 px-3 rounded-md shadow-sm hover:bg-blue-700 text-sm transition-colors">
+                        Export
                     </button>
-                </form>
-
-                <!-- Transaction Form -->
-                <form id="transaction-form" class="bg-white p-6 rounded-xl shadow-lg border border-gray-200 space-y-4">
-                    <h2 class="text-lg font-semibold text-gray-700">Add New Transaction</h2>
-                    
-                    <!-- Type -->
-                    <div class="flex gap-4">
-                        <div class="flex items-center">
-                            <input id="type-income" name="type" type="radio" value="income" class="h-4 w-4 text-blue-600 border-gray-300 focus:ring-blue-500" checked>
-                            <label for="type-income" class="ml-2 block text-sm font-medium text-gray-700">Income</label>
-                        </div>
-                        <div class="flex items-center">
-                            <input id="type-expense" name="type" type="radio" value="expense" class="h-4 w-4 text-blue-600 border-gray-300 focus:ring-blue-500">
-                            <label for="type-expense" class="ml-2 block text-sm font-medium text-gray-700">Expense</label>
-                        </div>
-                    </div>
-
-                    <!-- Description -->
-                    <div>
-                        <label for="description" class="block text-sm font-medium text-gray-700">Description</label>
-                        <input type="text" id="description" placeholder="e.g. Coffee" required class="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500">
-                    </div>
-
-                    <!-- Amount -->
-                    <div>
-                        <label for="amount" class="block text-sm font-medium text-gray-700">Amount</label>
-                        <input type="number" id="amount" placeholder="20.00" step="0.01" min="0.01" required class="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500">
-                    </div>
-
-                    <!-- Date -->
-                    <div>
-                        <label for="date" class="block text-sm font-medium text-gray-700">Date</label>
-                        <input type="date" id="date" required class="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500">
-                    </div>
-
-                    <!-- Category (for expenses) -->
-                    <div id="category-wrapper">
-                        <label for="category" class="block text-sm font-medium text-gray-700">Category</label>
-                        <select id="category" class="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500">
-                            <option>Food</option>
-                            <option>Transport</option>
-                            <option>Utilities</option>
-                            <option>Rent</option>
-                            <option>Entertainment</option>
-                            <option>Other</option>
-                        </select>
-                    </div>
-                    
-                    <button type="submit" class="w-full bg-blue-600 text-white font-semibold py-2 px-4 rounded-md shadow-sm hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 transition-colors">
-                        Add Transaction
+                    <button id="import-data-button" class="flex-1 w-full bg-gray-600 text-white font-semibold py-2 px-3 rounded-md shadow-sm hover:bg-gray-700 text-sm transition-colors">
+                        Import
                     </button>
-                </form>
-
-                <!-- Budget Status Section -->
-                <div class="bg-white p-6 rounded-xl shadow-lg border border-gray-200 space-y-4">
-                    <h2 class="text-lg font-semibold text-gray-700">Budget Status</h2>
-                    <div id="budget-status-list" class="space-y-4">
-                        <!-- Budget progress bars will be injected here -->
-                    </div>
+                    <input type="file" id="import-file-input" class="hidden" accept=".json">
                 </div>
-
-                <!-- NEW: Data Backup Section -->
-                <div class="bg-white p-6 rounded-xl shadow-lg border border-gray-200 space-y-4">
-                    <h2 class="text-lg font-semibold text-gray-700">Data Backup</h2>
-                    <p class="text-sm text-gray-600">Save your data to a file or load a previous backup. Importing will overwrite existing data.</p>
-                    <div class="flex flex-col sm:flex-row gap-4">
-                        <button id="export-data" class="flex-1 w-full bg-blue-600 text-white font-semibold py-2 px-4 rounded-md shadow-sm hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 transition-colors">
-                            Export Data
-                        </button>
-                        <button id="import-data-button" class="flex-1 w-full bg-gray-600 text-white font-semibold py-2 px-4 rounded-md shadow-sm hover:bg-gray-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-gray-500 transition-colors">
-                            Import Data
-                        </button>
-                        <!-- Hidden file input, triggered by the button -->
-                        <input type="file" id="import-file-input" class="hidden" accept=".json">
-                    </div>
-                </div>
-
             </div>
 
-            <!-- Right Column: Chart & History -->
-            <div class="lg:col-span-2 space-y-6">
-
-                <!-- Chart -->
-                <div class="bg-white p-6 rounded-xl shadow-lg border border-gray-200">
-                    <h2 class="text-lg font-semibold text-gray-700 mb-4">Expense Breakdown</h2>
-                    <div class="h-64 md:h-80 relative">
-                        <canvas id="expense-chart"></canvas>
-                    </div>
+            <!-- Budget Status Section -->
+            <div class="mb-6 border-b pb-6">
+                <h3 class="font-semibold text-slate-700 mb-3">Budget Status</h3>
+                <div id="budget-status-list" class="space-y-3 max-h-40 overflow-y-auto pr-2">
+                    <!-- Budget progress bars will be injected here -->
                 </div>
-
-                <!-- Transaction History -->
-                <div class="bg-white p-6 rounded-xl shadow-lg border border-gray-200">
-                    <h2 class="text-lg font-semibold text-gray-700 mb-4">Transaction History</h2>
-                    <div id="transaction-list" class="space-y-3 max-h-96 overflow-y-auto pr-2">
-                        <!-- Transactions will be injected here -->
-                    </div>
-                </div>
-
             </div>
 
-        </div>
+            <!-- Filters -->
+            <div class="flex-1 overflow-y-auto pr-2">
+                <h3 class="font-semibold text-slate-700 mb-2">Month</h3>
+                <div id="month-filters" class="space-y-2 mb-4">
+                    <!-- Filters will be populated by JS -->
+                </div>
+                
+                <h3 class="font-semibold text-slate-700 mb-2">Category</h3>
+                <div class="relative mb-2">
+                    <input type="text" id="category-search" placeholder="Search categories..." class="w-full p-2 border border-slate-300 rounded-md text-sm">
+                </div>
+                <div id="category-filters" class="space-y-2 max-h-48 overflow-y-auto mb-4">
+                    <!-- Filters will be populated by JS -->
+                </div>
+
+                <h3 class="font-semibold text-slate-700 mb-2">Payment Method</h3>
+                <div id="payment-filters" class="space-y-2">
+                    <!-- Filters will be populated by JS -->
+                </div>
+            </div>
+        </aside>
+
+        <!-- Main Content -->
+        <main class="flex-1 p-6 lg:p-10">
+            <div class="flex flex-col sm:flex-row justify-between items-center mb-6 gap-4">
+                <h1 class="text-3xl font-bold text-slate-900">Expense Dashboard</h1>
+                <div class="flex gap-3">
+                    <button id="set-budgets-button" class="flex items-center gap-2 bg-green-600 text-white font-semibold px-4 py-2 rounded-lg shadow-md hover:bg-green-700 transition-all">
+                        Set Budgets
+                    </button>
+                    <button id="add-transaction-button" class="flex items-center gap-2 bg-blue-600 text-white font-semibold px-4 py-2 rounded-lg shadow-md hover:bg-blue-700 transition-all">
+                        + Add Transaction
+                    </button>
+                    <button id="ai-analysis-button" class="flex items-center gap-2 bg-indigo-600 text-white font-semibold px-4 py-2 rounded-lg shadow-md hover:bg-indigo-700 transition-all">
+                        ✨ AI Analysis
+                    </button>
+                </div>
+            </div>
+
+            <!-- KPI Cards -->
+            <div class="grid grid-cols-2 md:grid-cols-5 gap-6 mb-6">
+                <div class="bg-white p-6 rounded-xl shadow-md">
+                    <h4 class="text-sm font-medium text-slate-500">Total Balance</h4>
+                    <p id="total-balance" class="text-2xl font-bold text-slate-800">₹0.00</p>
+                </div>
+                <div class="bg-white p-6 rounded-xl shadow-md">
+                    <h4 class="text-sm font-medium text-slate-500">Total Income</h4>
+                    <p id="total-income" class="text-2xl font-bold text-green-600">₹0.00</p>
+                </div>
+                <div class="bg-white p-6 rounded-xl shadow-md">
+                    <h4 class="text-sm font-medium text-slate-500">Total Spend</h4>
+                    <p id="total-spend" class="text-2xl font-bold text-red-600">₹0.00</p>
+                </div>
+                <div class="bg-white p-6 rounded-xl shadow-md">
+                    <h4 class="text-sm font-medium text-slate-500">Transactions</h4>
+                    <p id="total-transactions" class="text-2xl font-bold text-slate-800">0</p>
+                </div>
+                <div class="bg-white p-6 rounded-xl shadow-md">
+                    <h4 class="text-sm font-medium text-slate-500">Avg. Spend</h4>
+                    <p id="avg-spend" class="text-2xl font-bold text-slate-800">₹0.00</p>
+                </div>
+            </div>
+
+            <!-- Charts -->
+            <div class="grid grid-cols-1 lg:grid-cols-3 gap-6 mb-6">
+                <div class="lg:col-span-2 bg-white p-6 rounded-xl shadow-md">
+                    <h3 class="text-lg font-semibold text-slate-800 mb-4">Spending by Category (Top 15)</h3>
+                    <div class="h-80">
+                        <canvas id="category-chart"></canvas>
+                    </div>
+                </div>
+                <div class="bg-white p-6 rounded-xl shadow-md">
+                    <h3 class="text-lg font-semibold text-slate-800 mb-4">Spending by Payment Method</h3>
+                    <div class="h-80 flex items-center justify-center">
+                        <canvas id="payment-chart"></canvas>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Data Table -->
+            <div class="bg-white p-6 rounded-xl shadow-md">
+                <h3 class="text-lg font-semibold text-slate-800 mb-4">All Transactions</h3>
+                <div class="overflow-x-auto">
+                    <table class="w-full">
+                        <thead class="bg-slate-50">
+                            <tr>
+                                <th class="p-3 text-left text-sm font-semibold text-slate-600">Date</th>
+                                <th class="p-3 text-left text-sm font-semibold text-slate-600">Description</th>
+                                <th class="p-3 text-left text-sm font-semibold text-slate-600">Category</th>
+                                <th class="p-3 text-left text-sm font-semibold text-slate-600">Method</th>
+                                <th class="p-3 text-right text-sm font-semibold text-slate-600">Amount</th>
+                                <th class="p-3 text-center text-sm font-semibold text-slate-600">Actions</th>
+                            </tr>
+                        </thead>
+                        <tbody id="transactions-table-body" class="divide-y divide-slate-200">
+                            <!-- Rows will be populated by JS -->
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </main>
     </div>
 
-    <!-- Edit Transaction Modal -->
-    <div id="edit-modal-overlay"> <!-- Start as hidden -->
-        <div id="edit-modal-content" class="bg-white w-full max-w-lg p-6 rounded-xl shadow-2xl border border-gray-200 space-y-4">
-            <div class="flex justify-between items-center">
-                <h2 class="text-lg font-semibold text-gray-700">Edit Transaction</h2>
-                <button id="edit-modal-close" class="text-gray-400 hover:text-gray-700 font-bold text-lg">&times;</button>
+    <!-- Add/Edit Transaction Modal -->
+    <div id="transaction-modal" class="modal-overlay">
+        <div class="modal-content bg-white rounded-xl shadow-2xl w-full max-w-lg p-6">
+            <div class="flex justify-between items-center mb-4">
+                <h2 id="transaction-modal-title" class="text-2xl font-bold text-slate-800">Add Transaction</h2>
+                <button id="transaction-modal-close" class="text-slate-400 hover:text-slate-600">&times;</button>
             </div>
             
-            <form id="edit-transaction-form" class="space-y-4">
-                <!-- Hidden input to store transaction ID -->
-                <input type="hidden" id="edit-transaction-id">
+            <form id="transaction-form" class="space-y-4">
+                <input type="hidden" id="transaction-id">
+                
+                <!-- Type -->
+                <div class="flex gap-4">
+                    <div class="flex items-center">
+                        <input id="type-income" name="type" type="radio" value="income" class="h-4 w-4 text-blue-600 border-gray-300 focus:ring-blue-500" checked>
+                        <label for="type-income" class="ml-2 block text-sm font-medium text-gray-700">Income</label>
+                    </div>
+                    <div class="flex items-center">
+                        <input id="type-expense" name="type" type="radio" value="expense" class="h-4 w-4 text-blue-600 border-gray-300 focus:ring-blue-500">
+                        <label for="type-expense" class="ml-2 block text-sm font-medium text-gray-700">Expense</label>
+                    </div>
+                </div>
 
                 <!-- Description -->
                 <div>
-                    <label for="edit-description" class="block text-sm font-medium text-gray-700">Description</label>
-                    <input type="text" id="edit-description" required class="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500">
+                    <label for="description" class="block text-sm font-medium text-gray-700">Description</label>
+                    <input type="text" id="description" placeholder="e.g. Coffee" required class="mt-1 block w-full px-3 py-2 border border-slate-300 rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500">
                 </div>
 
                 <!-- Amount -->
                 <div>
-                    <label for="edit-amount" class="block text-sm font-medium text-gray-700">Amount</label>
-                    <input type="number" id="edit-amount" step="0.01" min="0.01" required class="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500">
+                    <label for="amount" class="block text-sm font-medium text-gray-700">Amount</label>
+                    <input type="number" id="amount" placeholder="20.00" step="0.01" min="0.01" required class="mt-1 block w-full px-3 py-2 border border-slate-300 rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500">
                 </div>
 
                 <!-- Date -->
                 <div>
-                    <label for="edit-date" class="block text-sm font-medium text-gray-700">Date</label>
-                    <input type="date" id="edit-date" required class="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500">
+                    <label for="date" class="block text-sm font-medium text-gray-700">Date</label>
+                    <input type="date" id="date" required class="mt-1 block w-full px-3 py-2 border border-slate-300 rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500">
                 </div>
-
-                <!-- Type (Income/Expense) -->
-                <div class="flex gap-4">
-                    <div class="flex items-center">
-                        <input id="edit-type-income" name="edit-type" type="radio" value="income" class="h-4 w-4 text-blue-600 border-gray-300 focus:ring-blue-500">
-                        <label for="edit-type-income" class="ml-2 block text-sm font-medium text-gray-700">Income</label>
+                
+                <div class="grid grid-cols-1 md:grid-cols-2 gap-4" id="expense-fields-wrapper">
+                    <!-- Category -->
+                    <div>
+                        <label for="category" class="block text-sm font-medium text-gray-700">Category</label>
+                        <input type="text" id="category" placeholder="e.g. Food" required class="mt-1 block w-full px-3 py-2 border border-slate-300 rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500">
                     </div>
-                    <div class="flex items-center">
-                        <input id="edit-type-expense" name="edit-type" type="radio" value="expense" class="h-4 w-4 text-blue-600 border-gray-300 focus:ring-blue-500">
-                        <label for="edit-type-expense" class="ml-2 block text-sm font-medium text-gray-700">Expense</label>
+                    <!-- Payment Method -->
+                    <div>
+                        <label for="payment-method" class="block text-sm font-medium text-gray-700">Payment Method</label>
+                        <input type="text" id="payment-method" placeholder="e.g. UPI" required class="mt-1 block w-full px-3 py-2 border border-slate-300 rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500">
                     </div>
                 </div>
-
-                <!-- Category (for expenses) -->
-                <div id="edit-category-wrapper">
-                    <label for="edit-category" class="block text-sm font-medium text-gray-700">Category</label>
-                    <select id="edit-category" class="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500">
-                        <option>Food</option>
-                        <option>Transport</option>
-                        <option>Utilities</option>
-                        <option>Rent</option>
-                        <option>Entertainment</option>
-                        <option>Other</option>
-                    </select>
-                </div>
-
-                <!-- Submit Button -->
-                <button type="submit" class="w-full bg-blue-600 text-white font-semibold py-2 px-4 rounded-md shadow-sm hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 transition-colors">
-                    Save Changes
+                
+                <button type="submit" id="transaction-submit-button" class="w-full bg-blue-600 text-white font-semibold py-2 px-4 rounded-md shadow-sm hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 transition-colors">
+                    Save Transaction
                 </button>
             </form>
+        </div>
+    </div>
+
+    <!-- Budget Modal -->
+    <div id="budget-modal" class="modal-overlay">
+        <div class="modal-content bg-white rounded-xl shadow-2xl w-full max-w-lg p-6">
+            <div class="flex justify-between items-center mb-4">
+                <h2 class="text-2xl font-bold text-slate-800">Set Budgets</h2>
+                <button id="budget-modal-close" class="text-slate-400 hover:text-slate-600">&times;</button>
+            </div>
+            <form id="budget-form" class="space-y-4">
+                <div>
+                    <label for="budget-category" class="block text-sm font-medium text-gray-700">Category</label>
+                    <input type="text" id="budget-category" placeholder="e.g. Food" required class="mt-1 block w-full px-3 py-2 border border-slate-300 rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500">
+                </div>
+                <div>
+                    <label for="budget-amount" class="block text-sm font-medium text-gray-700">Budget Amount</label>
+                    <input type="number" id="budget-amount" placeholder="200.00" step="0.01" min="0.01" required class="mt-1 block w-full px-3 py-2 border border-slate-300 rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500">
+                </div>
+                <button type="submit" class="w-full bg-green-600 text-white font-semibold py-2 px-4 rounded-md shadow-sm hover:bg-green-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-green-500 transition-colors">
+                    Set Budget
+                </button>
+            </form>
+            <div class="mt-4">
+                <h3 class="font-semibold text-slate-700 mb-2">Existing Budgets</h3>
+                <div id="existing-budgets-list" class="space-y-2 max-h-40 overflow-y-auto pr-2">
+                    <!-- Existing budgets will be shown here -->
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- AI Analysis Modal -->
+    <div id="ai-modal" class="modal-overlay">
+        <div id="ai-modal-content" class="modal-content bg-white rounded-xl shadow-2xl w-full max-w-lg p-6">
+            <button id="ai-modal-close" class="absolute top-4 right-4 text-slate-400 hover:text-slate-600">
+                <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="18" y1="6" x2="6" y2="18"></line><line x1="6" y1="6" x2="18" y2="18"></line></svg>
+            </button>
+            <div class="flex items-center gap-3 mb-4">
+                <span class="text-2xl">✨</span>
+                <h2 class="text-2xl font-bold text-slate-800">AI Spending Analysis</h2>
+            </div>
+            
+            <div id="ai-response-area" class="min-h-[150px]">
+                <div id="ai-loader" class="flex flex-col items-center justify-center h-full">
+                    <div class="loader"></div>
+                    <p class="text-slate-500 mt-4">Aapke data ko analyze kar rahe hain...</p>
+                </div>
+                <div id="ai-content" class="text-slate-700 space-y-3 prose hidden"></div>
+                <div id="ai-error" class="text-red-600 hidden">
+                    Ek error aa gaya hai. Kripya thodi der baad try karein.
+                </div>
+            </div>
         </div>
     </div>
 
 
     <script>
         document.addEventListener('DOMContentLoaded', () => {
-            // --- DOM Elements ---
-            const form = document.getElementById('transaction-form');
+            
+            // --- STATE ---
+            let transactions = [];
+            let budgets = {};
+            let categoryChartInstance = null;
+            let paymentChartInstance = null;
+
+            // --- DOM ELEMENTS ---
+            // KPIs
+            const totalBalanceEl = document.getElementById('total-balance');
+            const totalIncomeEl = document.getElementById('total-income');
+            const totalSpendEl = document.getElementById('total-spend');
+            const totalTransactionsEl = document.getElementById('total-transactions');
+            const avgSpendEl = document.getElementById('avg-spend');
+
+            // Charts
+            const categoryChartCanvas = document.getElementById('category-chart').getContext('2d');
+            const paymentChartCanvas = document.getElementById('payment-chart').getContext('2d');
+
+            // Table
+            const tableBody = document.getElementById('transactions-table-body');
+
+            // Filters
+            const monthFilterContainer = document.getElementById('month-filters');
+            const categoryFilterContainer = document.getElementById('category-filters');
+            const paymentFilterContainer = document.getElementById('payment-filters');
+            const categorySearchInput = document.getElementById('category-search');
+
+            // Transaction Modal
+            const addTransactionBtn = document.getElementById('add-transaction-button');
+            const transactionModal = document.getElementById('transaction-modal');
+            const transactionModalTitle = document.getElementById('transaction-modal-title');
+            const transactionModalClose = document.getElementById('transaction-modal-close');
+            const transactionForm = document.getElementById('transaction-form');
+            const transactionIdInput = document.getElementById('transaction-id');
+            const transactionSubmitBtn = document.getElementById('transaction-submit-button');
+            const typeIncomeRadio = document.getElementById('type-income');
+            const typeExpenseRadio = document.getElementById('type-expense');
             const descriptionInput = document.getElementById('description');
             const amountInput = document.getElementById('amount');
             const dateInput = document.getElementById('date');
-            const transactionListEl = document.getElementById('transaction-list');
-            const balanceEl = document.getElementById('balance');
-            const incomeEl = document.getElementById('income');
-            const expenseEl = document.getElementById('expense');
-            const typeIncomeRadio = document.getElementById('type-income');
-            const typeExpenseRadio = document.getElementById('type-expense');
-            const categoryWrapper = document.getElementById('category-wrapper');
+            const expenseFieldsWrapper = document.getElementById('expense-fields-wrapper');
             const categoryInput = document.getElementById('category');
-            const chartCanvas = document.getElementById('expense-chart');
-            // Budget elements
+            const paymentMethodInput = document.getElementById('payment-method');
+
+            // Budget Modal
+            const setBudgetsBtn = document.getElementById('set-budgets-button');
+            const budgetModal = document.getElementById('budget-modal');
+            const budgetModalClose = document.getElementById('budget-modal-close');
             const budgetForm = document.getElementById('budget-form');
             const budgetCategoryInput = document.getElementById('budget-category');
             const budgetAmountInput = document.getElementById('budget-amount');
+            const existingBudgetsList = document.getElementById('existing-budgets-list');
             const budgetStatusListEl = document.getElementById('budget-status-list');
-            
-            // NEW: Backup Elements
+
+            // Import/Export
             const exportDataBtn = document.getElementById('export-data');
             const importDataBtn = document.getElementById('import-data-button');
             const importFileInput = document.getElementById('import-file-input');
+            
+            // AI Modal
+            const aiModal = document.getElementById('ai-modal');
+            const aiModalContent = document.getElementById('ai-modal-content');
+            const aiModalClose = document.getElementById('ai-modal-close');
+            const aiAnalysisButton = document.getElementById('ai-analysis-button');
+            const aiLoader = document.getElementById('ai-loader');
+            const aiContent = document.getElementById('ai-content');
+            const aiError = document.getElementById('ai-error');
 
-            // Edit Modal Elements
-            const editModalOverlay = document.getElementById('edit-modal-overlay');
-            const editModalCloseBtn = document.getElementById('edit-modal-close');
-            const editForm = document.getElementById('edit-transaction-form');
-            const editTransactionIdInput = document.getElementById('edit-transaction-id');
-            const editDescriptionInput = document.getElementById('edit-description');
-            const editAmountInput = document.getElementById('edit-amount');
-            const editDateInput = document.getElementById('edit-date');
-            const editTypeIncomeRadio = document.getElementById('edit-type-income');
-            const editTypeExpenseRadio = document.getElementById('edit-type-expense');
-            const editCategoryWrapper = document.getElementById('edit-category-wrapper');
-            const editCategoryInput = document.getElementById('edit-category');
+            // --- HELPER FUNCTIONS ---
+            const formatCurrency = (num) => {
+                const options = { style: 'currency', currency: 'INR', minimumFractionDigits: 2 };
+                let formatted = new Intl.NumberFormat('en-IN', options).format(Math.abs(num));
+                if (num < 0) {
+                    formatted = '-' + formatted;
+                }
+                return formatted.replace('₹', '₹'); // Ensure consistent symbol
+            };
+            
+            // Capitalize first letter of each word
+            const capitalize = (str) => str.toLowerCase().replace(/\b\w/g, char => char.toUpperCase());
 
-
-            let expenseChart; // To hold the chart instance
-
-            // --- App State ---
-            let transactions = [];
-            let budgets = {}; // To store budget data, e.g., { Food: 500, Transport: 100 }
-
-            // --- Functions ---
-
-            /**
-             * Load data from Local Storage
-             */
+            // --- DATA PERSISTENCE ---
             function loadData() {
                 try {
                     const lsTransactions = localStorage.getItem('transactions');
-                    if (lsTransactions) {
-                        transactions = JSON.parse(lsTransactions);
-                    }
+                    transactions = lsTransactions ? JSON.parse(lsTransactions) : [];
                     
-                    // Load budgets
                     const lsBudgets = localStorage.getItem('budgets');
-                    if (lsBudgets) {
-                        budgets = JSON.parse(lsBudgets);
-                    }
+                    budgets = lsBudgets ? JSON.parse(lsBudgets) : {};
                 } catch (error) {
-                    console.error("Error loading data from localStorage:", error);
+                    console.error("Error loading data:", error);
                     transactions = [];
                     budgets = {};
                 }
-                updateUI();
+                updateDashboard();
             }
 
-            /**
-             * Save data to Local Storage
-             */
             function saveTransactions() {
-                try {
-                    localStorage.setItem('transactions', JSON.stringify(transactions));
-                } catch (error) {
-                    console.error("Error saving transactions to localStorage:", error);
-                }
+                localStorage.setItem('transactions', JSON.stringify(transactions));
             }
             
             function saveBudgets() {
-                 try {
-                    localStorage.setItem('budgets', JSON.stringify(budgets));
-                 } catch (error) {
-                    console.error("Error saving budgets to localStorage:", error);
-                 }
+                 localStorage.setItem('budgets', JSON.stringify(budgets));
             }
 
-
-            /**
-             * Main update function to refresh all UI components
-             */
-            function updateUI() {
-                updateSummary();
-                displayTransactions();
-                updateChart();
-                updateBudgetStatus(); // Update budget UI
+            // --- MAIN UPDATE FUNCTION ---
+            function updateDashboard() {
+                // Filter data
+                const filteredData = getFilteredData();
+                
+                // Update components
+                updateKPIs(filteredData);
+                updateTable(filteredData);
+                updateCharts(filteredData);
+                
+                // Update global components that don't depend on filters
+                populateFilters(); // Re-populate filters based on *all* data
+                updateBudgetStatus(); // Update budget status based on *all* data
+                updateExistingBudgetsList(); // Update list in budget modal
             }
 
-            /**
-             * Calculate and update the summary (balance, income, expense)
-             */
-            function updateSummary() {
-                const totalIncome = transactions
-                    .filter(t => t.type === 'income')
-                    .reduce((acc, t) => acc + t.amount, 0);
+            // --- FILTER LOGIC ---
+            function populateFilters() {
+                // Get unique values from *all* transactions
+                const months = [...new Set(transactions.map(d => new Date(d.date).toLocaleString('default', { month: 'long', year: 'numeric' })))].sort((a, b) => new Date(a) - new Date(b));
+                const categories = [...new Set(transactions.filter(t => t.type === 'expense').map(d => d.category))].sort();
+                const paymentMethods = [...new Set(transactions.filter(t => t.type === 'expense').map(d => d.paymentMethod))].sort();
 
-                const totalExpense = transactions
-                    .filter(t => t.type === 'expense')
-                    .reduce((acc, t) => acc + t.amount, 0);
+                // Get currently selected values to preserve state
+                const selectedMonths = [...document.querySelectorAll('input[data-group="month"]:checked')].map(el => el.value);
+                const selectedCategories = [...document.querySelectorAll('input[data-group="category"]:checked')].map(el => el.value);
+                const selectedPayments = [...document.querySelectorAll('input[data-group="payment"]:checked')].map(el => el.value);
 
-                const totalBalance = totalIncome - totalExpense;
-
-                balanceEl.textContent = formatCurrency(totalBalance);
-                incomeEl.textContent = formatCurrency(totalIncome);
-                expenseEl.textContent = formatCurrency(totalExpense, false); // Don't use minus sign here
-            }
-
-            /**
-             * Display all transactions in the list
-             */
-            function displayTransactions() {
-                transactionListEl.innerHTML = '';
-
-                if (transactions.length === 0) {
-                    transactionListEl.innerHTML = '<p class="text-gray-500 text-center">No transactions yet.</p>';
-                    return;
-                }
-
-                // Sort transactions by date (newest first)
-                const sortedTransactions = [...transactions].sort((a, b) => new Date(b.date) - new Date(a.date));
-
-                sortedTransactions.forEach(t => {
-                    const isExpense = t.type === 'expense';
-                    const sign = isExpense ? '-' : '+';
-                    const colorClass = isExpense ? 'text-red-600' : 'text-green-600';
-
-                    const item = document.createElement('div');
-                    item.className = 'flex items-center justify-between bg-gray-50 p-3 rounded-lg border border-gray-200';
-                    item.innerHTML = `
-                        <div class="flex-1 min-w-0">
-                            <div class="font-medium text-gray-800 truncate">${t.description}</div>
-                            <div class="text-sm text-gray-500">${t.date} ${isExpense ? `(${t.category})` : ''}</div>
-                        </div>
-                        <div class="flex items-center">
-                            <div class="${colorClass} font-semibold mx-4">${sign}${formatCurrency(t.amount, false)}</div>
-                            <!-- Edit Button -->
-                            <button onclick="openEditModal(${t.id})" class="text-gray-400 hover:text-blue-600 font-bold text-lg px-2 rounded-full transition-colors" title="Edit">✎</button>
-                            <!-- Delete Button -->
-                            <button onclick="deleteTransaction(${t.id})" class="text-gray-400 hover:text-red-600 font-bold text-lg px-2 rounded-full transition-colors" title="Delete">&times;</button>
+                // Helper to create checkbox HTML
+                const createFilterCheckbox = (group, value) => {
+                    // If no filters are selected, check all by default
+                    let isChecked;
+                    if (group === 'month') isChecked = selectedMonths.length === 0 || selectedMonths.includes(value);
+                    if (group === 'category') isChecked = selectedCategories.length === 0 || selectedCategories.includes(value);
+                    if (group === 'payment') isChecked = selectedPayments.length === 0 || selectedPayments.includes(value);
+                    
+                    return `
+                        <div class="filter-item flex items-center">
+                            <input type="checkbox" id="filter-${group}-${value}" data-group="${group}" value="${value}" ${isChecked ? 'checked' : ''} class="filter-checkbox h-4 w-4 rounded border-slate-300 text-blue-600 focus:ring-blue-500">
+                            <label for="filter-${group}-${value}" class="ml-2 text-sm text-slate-700">${value}</label>
                         </div>
                     `;
-                    transactionListEl.appendChild(item);
+                };
+
+                monthFilterContainer.innerHTML = months.map(m => createFilterCheckbox('month', m)).join('');
+                categoryFilterContainer.innerHTML = categories.map(c => createFilterCheckbox('category', c)).join('');
+                paymentFilterContainer.innerHTML = paymentMethods.map(p => createFilterCheckbox('payment', p)).join('');
+
+                // Re-add event listeners
+                document.querySelectorAll('.filter-checkbox').forEach(box => {
+                    box.removeEventListener('change', updateDashboard); // Avoid duplicates
+                    box.addEventListener('change', updateDashboard);
                 });
             }
 
-            /**
-             * Update the expense pie chart
-             */
-            function updateChart() {
-                const expenseData = transactions
-                    .filter(t => t.type === 'expense')
-                    .reduce((acc, t) => {
-                        acc[t.category] = (acc[t.category] || 0) + t.amount;
-                        return acc;
-                    }, {});
+            function getFilteredData() {
+                const selectedMonths = [...document.querySelectorAll('input[data-group="month"]:checked')].map(el => el.value);
+                const selectedCategories = [...document.querySelectorAll('input[data-group="category"]:checked')].map(el => el.value);
+                const selectedPayments = [...document.querySelectorAll('input[data-group="payment"]:checked')].map(el => el.value);
 
-                const labels = Object.keys(expenseData);
-                const data = Object.values(expenseData);
+                return transactions.filter(d => {
+                    const monthYear = new Date(d.date).toLocaleString('default', { month: 'long', year: 'numeric' });
+                    
+                    const monthMatch = selectedMonths.length === 0 || selectedMonths.includes(monthYear);
+                    
+                    // Income transactions don't have category/payment, so they always pass these filters
+                    if (d.type === 'income') {
+                        return monthMatch;
+                    }
+                    
+                    // Expense filters
+                    const categoryMatch = selectedCategories.length === 0 || selectedCategories.includes(d.category);
+                    const paymentMatch = selectedPayments.length === 0 || selectedPayments.includes(d.paymentMethod);
+                    
+                    return monthMatch && categoryMatch && paymentMatch;
+                });
+            }
 
-                // Chart.js colors
-                const backgroundColors = [
-                    '#EF4444', // red-500
-                    '#3B82F6', // blue-500
-                    '#22C55E', // green-500
-                    '#EAB308', // yellow-500
-                    '#A855F7', // purple-500
-                    '#EC4899', // pink-500
-                    '#F97316', // orange-500
-                ];
+            // Category search
+            categorySearchInput.addEventListener('input', (e) => {
+                const searchTerm = e.target.value.toLowerCase();
+                document.querySelectorAll('#category-filters .filter-item').forEach(item => {
+                    const label = item.querySelector('label').innerText.toLowerCase();
+                    item.style.display = label.includes(searchTerm) ? 'flex' : 'none';
+                });
+            });
 
-                // Destroy old chart instance if it exists
-                if (expenseChart) {
-                    expenseChart.destroy();
-                }
-
-                // Remove 'no data' message if it exists
-                const noDataMsg = chartCanvas.parentNode.querySelector('.no-data-msg');
-                if (noDataMsg) noDataMsg.remove();
+            // --- DASHBOARD UI UPDATES ---
+            function updateKPIs(data) {
+                const totalIncome = data.filter(t => t.type === 'income').reduce((sum, d) => sum + d.amount, 0);
+                const totalExpense = data.filter(t => t.type === 'expense').reduce((sum, d) => sum + d.amount, 0);
+                const totalBalance = totalIncome - totalExpense;
                 
-                chartCanvas.style.display = 'block';
+                const expenseTransactions = data.filter(t => t.type === 'expense');
+                const totalTransactionsCount = expenseTransactions.length;
+                const avgSpend = totalTransactionsCount > 0 ? totalExpense / totalTransactionsCount : 0;
 
-                if (labels.length === 0) {
-                    // Display a message if no expense data
-                    chartCanvas.style.display = 'none';
-                    const noDataMsg = document.createElement('p');
-                    noDataMsg.textContent = 'No expense data to display.';
-                    noDataMsg.className = 'text-gray-500 text-center no-data-msg absolute inset-0 flex items-center justify-center';
-                    chartCanvas.parentNode.appendChild(noDataMsg);
+                totalBalanceEl.textContent = formatCurrency(totalBalance);
+                totalIncomeEl.textContent = formatCurrency(totalIncome);
+                totalSpendEl.textContent = formatCurrency(totalExpense, false); // No minus
+                totalTransactionsEl.textContent = data.length; // All transactions
+                avgSpendEl.textContent = formatCurrency(avgSpend);
+            }
+
+            function updateTable(data) {
+                tableBody.innerHTML = ''; // Clear existing rows
+
+                if (data.length === 0) {
+                    tableBody.innerHTML = '<tr><td colspan="6" class="p-4 text-center text-slate-500">No data matches your filters.</td></tr>';
                     return;
                 }
 
-                // Create new chart
-                const ctx = chartCanvas.getContext('2d');
-                expenseChart = new Chart(ctx, {
-                    type: 'doughnut',
+                const sortedData = [...data].sort((a, b) => new Date(b.date) - new Date(a.date));
+
+                sortedData.forEach(row => {
+                    const isExpense = row.type === 'expense';
+                    const amountColor = isExpense ? 'text-red-600' : 'text-green-600';
+                    const sign = isExpense ? '-' : '+';
+                    
+                    tableBody.innerHTML += `
+                        <tr class="hover:bg-slate-50">
+                            <td class="p-3 text-sm text-slate-700">${row.date}</td>
+                            <td class="p-3 text-sm text-slate-900 font-medium">${row.description}</td>
+                            <td class="p-3 text-sm text-slate-700">${isExpense ? row.category : 'N/A'}</td>
+                            <td class="p-3 text-sm text-slate-700">${isExpense ? row.paymentMethod : 'N/A'}</td>
+                            <td class="p-3 text-sm ${amountColor} font-medium text-right">${sign}${formatCurrency(row.amount, false)}</td>
+                            <td class="p-3 text-center">
+                                <button onclick="window.openEditModal(${row.id})" class="text-blue-600 hover:text-blue-800 p-1" title="Edit">✎</button>
+                                <button onclick="window.deleteTransaction(${row.id})" class="text-red-600 hover:text-red-800 p-1" title="Delete">&times;</button>
+                            </td>
+                        </tr>
+                    `;
+                });
+            }
+
+            function updateCharts(data) {
+                // 1. Category Chart (Bar) - Only for expenses
+                const expenseData = data.filter(t => t.type === 'expense');
+                
+                const categoryData = expenseData.reduce((acc, d) => {
+                    acc[d.category] = (acc[d.category] || 0) + d.amount;
+                    return acc;
+                }, {});
+
+                const sortedCategories = Object.entries(categoryData)
+                    .sort(([, a], [, b]) => b - a)
+                    .slice(0, 15);
+
+                const categoryLabels = sortedCategories.map(d => d[0]);
+                const categoryAmounts = sortedCategories.map(d => d[1]);
+                
+                if (categoryChartInstance) categoryChartInstance.destroy();
+                categoryChartInstance = new Chart(categoryChartCanvas, {
+                    type: 'bar',
                     data: {
-                        labels: labels,
+                        labels: categoryLabels,
                         datasets: [{
-                            data: data,
-                            backgroundColor: backgroundColors.slice(0, labels.length),
-                            borderColor: '#ffffff',
-                            borderWidth: 2,
+                            label: 'Total Spend',
+                            data: categoryAmounts,
+                            backgroundColor: 'rgba(59, 130, 246, 0.7)',
+                            borderColor: 'rgba(59, 130, 246, 1)',
+                            borderWidth: 1,
+                            borderRadius: 4
                         }]
                     },
                     options: {
                         responsive: true,
                         maintainAspectRatio: false,
-                        plugins: {
-                            legend: {
-                                position: 'bottom',
-                                labels: {
-                                    padding: 15,
-                                    boxWidth: 12,
-                                    font: {
-                                        size: 14
-                                    }
-                                }
-                            },
-                            tooltip: {
-                                callbacks: {
-                                    label: function(context) {
-                                        let label = context.label || '';
-                                        if (label) {
-                                            label += ': ';
-                                        }
-                                        if (context.parsed) {
-                                            label += formatCurrency(context.parsed);
-                                        }
-                                        return label;
-                                    }
-                                }
-                            }
-                        }
+                        plugins: { legend: { display: false }, tooltip: { callbacks: { label: (c) => formatCurrency(c.raw) } } },
+                        scales: { y: { beginAtZero: true, ticks: { callback: (v) => `₹${v / 1000}k` } } }
+                    }
+                });
+
+                // 2. Payment Method Chart (Doughnut)
+                const paymentData = expenseData.reduce((acc, d) => {
+                    acc[d.paymentMethod] = (acc[d.paymentMethod] || 0) + d.amount;
+                    return acc;
+                }, {});
+
+                const paymentLabels = Object.keys(paymentData);
+                const paymentAmounts = Object.values(paymentData);
+
+                if (paymentChartInstance) paymentChartInstance.destroy();
+                paymentChartInstance = new Chart(paymentChartCanvas, {
+                    type: 'doughnut',
+                    data: {
+                        labels: paymentLabels,
+                        datasets: [{
+                            data: paymentAmounts,
+                            backgroundColor: ['rgba(59, 130, 246, 0.7)', 'rgba(239, 68, 68, 0.7)', 'rgba(22, 163, 74, 0.7)', 'rgba(245, 158, 11, 0.7)'],
+                            borderColor: '#fff',
+                            borderWidth: 2
+                        }]
+                    },
+                    options: {
+                        responsive: true,
+                        maintainAspectRatio: false,
+                        plugins: { legend: { position: 'bottom' }, tooltip: { callbacks: { label: (c) => `${c.label}: ${formatCurrency(c.raw)}` } } }
                     }
                 });
             }
+            
+            // --- TRANSACTION MODAL (ADD/EDIT) ---
+            function openTransactionModal(transactionId = null) {
+                if (transactionId) {
+                    // Edit Mode
+                    const t = transactions.find(t => t.id === transactionId);
+                    if (!t) return;
+                    
+                    transactionModalTitle.textContent = 'Edit Transaction';
+                    transactionSubmitBtn.textContent = 'Save Changes';
+                    transactionIdInput.value = t.id;
+                    descriptionInput.value = t.description;
+                    amountInput.value = t.amount;
+                    dateInput.value = t.date;
+                    
+                    if (t.type === 'income') {
+                        typeIncomeRadio.checked = true;
+                        expenseFieldsWrapper.style.display = 'none';
+                    } else {
+                        typeExpenseRadio.checked = true;
+                        expenseFieldsWrapper.style.display = 'block';
+                        categoryInput.value = t.category;
+                        paymentMethodInput.value = t.paymentMethod;
+                    }
+                } else {
+                    // Add Mode
+                    transactionModalTitle.textContent = 'Add Transaction';
+                    transactionSubmitBtn.textContent = 'Add Transaction';
+                    transactionForm.reset();
+                    transactionIdInput.value = '';
+                    dateInput.value = new Date().toISOString().split('T')[0];
+                    toggleExpenseFields(); // Set default state
+                }
+                transactionModal.classList.add('visible');
+            }
 
-            /**
-             * Update the budget status progress bars
-             */
-            function updateBudgetStatus() {
-                budgetStatusListEl.innerHTML = ''; // Clear old list
+            function closeTransactionModal() {
+                transactionModal.classList.remove('visible');
+            }
 
-                if (Object.keys(budgets).length === 0) {
-                    budgetStatusListEl.innerHTML = '<p class="text-gray-500 text-center">No budgets set.</p>';
+            function toggleExpenseFields() {
+                expenseFieldsWrapper.style.display = typeExpenseRadio.checked ? 'block' : 'none';
+            }
+            
+            function handleTransactionSubmit(e) {
+                e.preventDefault();
+                
+                const id = parseInt(transactionIdInput.value);
+                const description = capitalize(descriptionInput.value);
+                const amount = parseFloat(amountInput.value);
+                const date = dateInput.value;
+                const type = typeIncomeRadio.checked ? 'income' : 'expense';
+                
+                let category = 'N/A';
+                let paymentMethod = 'N/A';
+                
+                if (type === 'expense') {
+                    category = capitalize(categoryInput.value);
+                    paymentMethod = capitalize(paymentMethodInput.value);
+                    if (!category || !paymentMethod) {
+                        alert('Please fill in Category and Payment Method for expenses.');
+                        return;
+                    }
+                }
+
+                if (!description || !amount || !date) {
+                    alert('Please fill in Description, Amount, and Date.');
                     return;
                 }
 
+                if (id) {
+                    // Update existing transaction
+                    const index = transactions.findIndex(t => t.id === id);
+                    if (index > -1) {
+                        transactions[index] = { id, description, amount, date, type, category, paymentMethod };
+                    }
+                } else {
+                    // Add new transaction
+                    transactions.push({
+                        id: Date.now(),
+                        description,
+                        amount,
+                        date,
+                        type,
+                        category,
+                        paymentMethod
+                    });
+                }
+                
+                saveTransactions();
+                updateDashboard();
+                closeTransactionModal();
+            }
+
+            // Attach to window for table button onclick
+            window.openEditModal = (id) => openTransactionModal(id);
+            
+            window.deleteTransaction = (id) => {
+                if (confirm('Are you sure you want to delete this transaction?')) {
+                    transactions = transactions.filter(t => t.id !== id);
+                    saveTransactions();
+                    updateDashboard();
+                }
+            };
+            
+            // --- BUDGET MODAL ---
+            function openBudgetModal() {
+                updateExistingBudgetsList();
+                budgetModal.classList.add('visible');
+            }
+            
+            function closeBudgetModal() {
+                budgetModal.classList.remove('visible');
+            }
+
+            function updateExistingBudgetsList() {
+                existingBudgetsList.innerHTML = '';
+                if (Object.keys(budgets).length === 0) {
+                    existingBudgetsList.innerHTML = '<p class="text-sm text-gray-500">No budgets set.</p>';
+                    return;
+                }
+                for (const category in budgets) {
+                    existingBudgetsList.innerHTML += `
+                        <div class="flex justify-between items-center text-sm">
+                            <span>${category}: ${formatCurrency(budgets[category])}</span>
+                            <button onclick="window.deleteBudget('${category}')" class="text-red-500 hover:text-red-700 font-bold">&times;</button>
+                        </div>
+                    `;
+                }
+            }
+            
+            function updateBudgetStatus() {
+                budgetStatusListEl.innerHTML = ''; // Clear old list
+                if (Object.keys(budgets).length === 0) {
+                    budgetStatusListEl.innerHTML = '<p class="text-gray-500 text-center text-sm">No budgets set.</p>';
+                    return;
+                }
                 for (const category in budgets) {
                     const budgetAmount = budgets[category];
-                    
-                    // Calculate total spent in this category
                     const spentAmount = transactions
                         .filter(t => t.type === 'expense' && t.category === category)
                         .reduce((acc, t) => acc + t.amount, 0);
                     
-                    const remainingAmount = budgetAmount - spentAmount;
                     const percentage = (spentAmount / budgetAmount) * 100;
+                    let progressBarColor = 'bg-green-500';
+                    if (percentage > 75) progressBarColor = 'bg-yellow-500';
+                    if (percentage >= 100) progressBarColor = 'bg-red-500';
 
-                    let progressBarColor = 'bg-green-500'; // Good
-                    if (percentage > 75) progressBarColor = 'bg-yellow-500'; // Warning
-                    if (percentage >= 100) progressBarColor = 'bg-red-500'; // Over budget
-
-                    const item = document.createElement('div');
-                    item.innerHTML = `
-                        <div class="flex justify-between items-center mb-1">
-                            <span class="text-sm font-medium text-gray-700">${category}</span>
-                            <span class="text-sm font-medium text-gray-600">${formatCurrency(spentAmount, false)} / ${formatCurrency(budgetAmount, false)}</span>
-                        </div>
-                        <div class="progress-bar">
-                            <div class="progress-bar-fill ${progressBarColor}" style="width: ${Math.min(percentage, 100)}%;">
-                                ${percentage > 15 ? `${percentage.toFixed(0)}%` : ''}
+                    budgetStatusListEl.innerHTML += `
+                        <div>
+                            <div class="flex justify-between items-center mb-1">
+                                <span class="text-sm font-medium text-gray-700">${category}</span>
+                                <span class="text-sm font-medium text-gray-600">${formatCurrency(spentAmount, false)} / ${formatCurrency(budgetAmount, false)}</span>
+                            </div>
+                            <div class="progress-bar">
+                                <div class="progress-bar-fill ${progressBarColor}" style="width: ${Math.min(percentage, 100)}%;"></div>
                             </div>
                         </div>
-                        ${remainingAmount < 0 ? 
-                            `<div class="text-xs text-red-600 font-medium text-right mt-1">Over budget by ${formatCurrency(Math.abs(remainingAmount), false)}</div>` : 
-                            `<div class="text-xs text-gray-500 text-right mt-1">${formatCurrency(remainingAmount, false)} remaining</div>`
-                        }
                     `;
-                    budgetStatusListEl.appendChild(item);
                 }
             }
-
-
-            /**
-             * Handle form submission to add a new transaction
-             * @param {Event} e
-             */
-            function handleFormSubmit(e) {
-                e.preventDefault();
-
-                const description = descriptionInput.value;
-                const amount = parseFloat(amountInput.value);
-                const date = dateInput.value;
-                const type = typeIncomeRadio.checked ? 'income' : 'expense';
-                const category = (type === 'expense') ? categoryInput.value : 'N/A';
-
-                if (!description || !amount || !date) {
-                    alert('Please fill in all fields.');
-                    return;
-                }
-                
-                // Create new transaction object
-                const newTransaction = {
-                    id: Date.now(), // Simple unique ID
-                    description,
-                    amount,
-                    date,
-                    type,
-                    category
-                };
-
-                // Add to state
-                transactions.push(newTransaction);
-                
-                saveTransactions(); // Save to local storage
-                updateUI(); // Refresh the UI
-
-                // Reset form
-                form.reset();
-                dateInput.value = new Date().toISOString().split('T')[0];
-                toggleCategory();
-            }
-
-            /**
-             * Handle budget form submission
-             * @param {Event} e
-             */
+            
             function handleBudgetFormSubmit(e) {
                 e.preventDefault();
-
-                const category = budgetCategoryInput.value;
+                const category = capitalize(budgetCategoryInput.value);
                 const amount = parseFloat(budgetAmountInput.value);
-
-                if (!amount || amount <= 0) {
-                    alert('Please enter a valid budget amount.');
+                if (!category || !amount || amount <= 0) {
+                    alert('Please enter a valid category and amount.');
                     return;
                 }
-
-                // Set or update the budget
                 budgets[category] = amount;
-                
                 saveBudgets();
-                updateUI(); // Refresh UI to show new budget status
-
-                // Clear input
-                budgetAmountInput.value = '';
+                updateBudgetStatus();
+                updateExistingBudgetsList();
+                budgetForm.reset();
             }
-
-            // --- NEW: Backup/Restore Functions ---
-
-            /**
-             * Handles exporting data to a JSON file
-             */
+            
+            window.deleteBudget = (category) => {
+                if (confirm(`Are you sure you want to delete the budget for "${category}"?`)) {
+                    delete budgets[category];
+                    saveBudgets();
+                    updateBudgetStatus();
+                    updateExistingBudgetsList();
+                }
+            };
+            
+            // --- IMPORT/EXPORT ---
             function handleExportData() {
-                // Bundle all data into one object
-                const dataToExport = {
-                    transactions: transactions,
-                    budgets: budgets
-                };
-
-                const dataStr = JSON.stringify(dataToExport, null, 2); // Pretty-print JSON
+                const dataToExport = { transactions, budgets };
+                const dataStr = JSON.stringify(dataToExport, null, 2);
                 const blob = new Blob([dataStr], { type: 'application/json' });
                 const url = URL.createObjectURL(blob);
-
-                const a = document.createElement('a'); // Create a temporary link
+                const a = document.createElement('a');
                 a.href = url;
                 a.download = `expense_tracker_backup_${new Date().toISOString().split('T')[0]}.json`;
-                document.body.appendChild(a);
-                a.click(); // Trigger download
-                document.body.removeChild(a); // Clean up
+                a.click();
                 URL.revokeObjectURL(url);
             }
 
-            /**
-             * Handles the file selection for import
-             * @param {Event} e
-             */
             function handleFileImport(e) {
                 const file = e.target.files[0];
-                if (!file) {
-                    return; // No file selected
-                }
-
+                if (!file) return;
                 const reader = new FileReader();
                 reader.onload = (event) => {
                     try {
                         const data = JSON.parse(event.target.result);
-                        
-                        // Validate data structure
                         if (!data || !Array.isArray(data.transactions) || typeof data.budgets !== 'object') {
-                            alert('Invalid backup file. Please make sure the file is correct.');
+                            alert('Invalid backup file.');
                             return;
                         }
-
-                        if (confirm('Are you sure you want to import this data? This will OVERWRITE your current transactions and budgets.')) {
-                            // Overwrite state with imported data
+                        if (confirm('This will OVERWRITE all current data. Are you sure?')) {
                             transactions = data.transactions;
                             budgets = data.budgets;
-                            
-                            // Save to localStorage and update UI
                             saveTransactions();
                             saveBudgets();
-                            updateUI();
-                            
+                            updateDashboard();
                             alert('Data imported successfully!');
                         }
                     } catch (error) {
-                        console.error("Error parsing imported file:", error);
-                        alert('Error importing file. It may be corrupted or in the wrong format.');
-                    } finally {
-                        // Reset file input so user can import same file again if needed
-                        importFileInput.value = '';
+                        alert('Error importing file.');
                     }
                 };
-                
-                reader.onerror = () => {
-                    console.error("Error reading file:", reader.error);
-                    alert('Failed to read the file.');
+                reader.readAsText(file);
+                importFileInput.value = ''; // Reset for same-file import
+            }
+
+            // --- AI MODAL ---
+            function showAiModal() {
+                aiModal.classList.add('visible');
+                aiModalContent.classList.add('opacity-100');
+            }
+
+            function hideAiModal() {
+                aiModalContent.classList.remove('opacity-100');
+                aiModal.classList.remove('visible');
+            }
+
+            function setModalLoading(isLoading) {
+                aiLoader.style.display = isLoading ? 'flex' : 'none';
+                aiContent.classList.toggle('hidden', isLoading);
+                aiError.classList.toggle('hidden', !isLoading);
+            }
+
+            async function handleAiAnalysis() {
+                showAiModal();
+                setModalLoading(true);
+
+                try {
+                    const data = getFilteredData(); // Analyze based on filters
+                    if (data.length === 0) {
+                        aiContent.innerHTML = "<p>Aapke current filter ke liye koi data nahi hai. Analysis ke liye कृपया filter badlein.</p>";
+                        aiError.classList.add('hidden');
+                        setModalLoading(false);
+                        return;
+                    }
+
+                    const categoryData = data.filter(t => t.type === 'expense').reduce((acc, d) => {
+                        acc[d.category] = (acc[d.category] || 0) + d.amount;
+                        return acc;
+                    }, {});
+
+                    const dataSummary = Object.entries(categoryData)
+                        .sort(([, a], [, b]) => b - a)
+                        .slice(0, 10)
+                        .map(([category, amount]) => `${category}: ${formatCurrency(amount)}`)
+                        .join(', ');
+
+                    const totalSpend = data.filter(t => t.type === 'expense').reduce((sum, d) => sum + d.amount, 0);
+                    const totalTransactions = data.length;
+
+                    const promptData = `Total Spend: ${formatCurrency(totalSpend)}, Total Transactions: ${totalTransactions}, Top Spending by Category: [${dataSummary}]`;
+                    const systemPrompt = "Aap ek friendly financial advisor hain. User ke kharch data ke basis par, unki spending habits ka ek chhota, 2-3 point ka analysis dein aur paise bachane ka ek aasan tip dein. Jawaab hamesha Hindi (Latin) mein, bullet points (e.g., * point) ka istemal karke, aur friendly tone mein dein.";
+                    const userQuery = `Mera spending data yeh hai: ${promptData}. Kripya iska analysis karein.`;
+                    
+                    const aiResponse = await callGeminiAPI(systemPrompt, userQuery);
+                    
+                    const formattedResponse = aiResponse
+                        .replace(/\* /g, '<br>• ')
+                        .replace(/\n/g, '<br>');
+
+                    aiContent.innerHTML = `<p>${formattedResponse}</p>`;
+                    aiContent.classList.remove('hidden');
+                    aiError.classList.add('hidden');
+
+                } catch (error) {
+                    console.error("Gemini API call failed:", error);
+                    aiError.textContent = `Analysis failed: ${error.message}. Please check your connection or try again.`;
+                    aiError.classList.remove('hidden');
+                } finally {
+                    setModalLoading(false);
+                }
+            }
+
+            // Gemini API Call Function
+            async function callGeminiAPI(systemPrompt, userQuery, retries = 3, delay = 1000) {
+                const apiKey = ""; // Provided by environment
+                const apiUrl = `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash-preview-09-2025:generateContent?key=${apiKey}`;
+
+                const payload = {
+                    contents: [{ parts: [{ text: userQuery }] }],
+                    systemInstruction: { parts: [{ text: systemPrompt }] },
                 };
 
-                reader.readAsText(file);
-            }
+                try {
+                    const response = await fetch(apiUrl, {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify(payload)
+                    });
 
+                    if (!response.ok) {
+                        if (response.status === 429 && retries > 0) {
+                            await new Promise(res => setTimeout(res, delay));
+                            return callGeminiAPI(systemPrompt, userQuery, retries - 1, delay * 2);
+                        }
+                        const errBody = await response.json();
+                        throw new Error(errBody.error.message || `API Error: ${response.status}`);
+                    }
 
-            /**
-             * Delete a transaction by its ID
-             * @param {number} id
-             */
-            window.deleteTransaction = function(id) { // <-- Attached to window
-                if (confirm('Are you sure you want to delete this transaction?')) {
-                    transactions = transactions.filter(t => t.id !== id);
-                    saveTransactions();
-                    updateUI();
+                    const result = await response.json();
+                    const candidate = result.candidates?.[0];
+
+                    if (candidate && candidate.content?.parts?.[0]?.text) {
+                        return candidate.content.parts[0].text;
+                    } else {
+                        throw new Error("Invalid response structure from API.");
+                    }
+                } catch (error) {
+                    if (retries > 0) {
+                        await new Promise(res => setTimeout(res, delay));
+                        return callGeminiAPI(systemPrompt, userQuery, retries - 1, delay * 2);
+                    }
+                    throw error;
                 }
             }
 
-            // --- Edit Modal Functions ---
-
-            /**
-             * Open and populate the edit modal for a specific transaction
-             * @param {number} id
-             */
-            window.openEditModal = function(id) { // <-- Attached to window
-                const transaction = transactions.find(t => t.id === id);
-                if (!transaction) return;
-
-                // Populate form fields
-                editTransactionIdInput.value = transaction.id;
-                editDescriptionInput.value = transaction.description;
-                editAmountInput.value = transaction.amount;
-                editDateInput.value = transaction.date;
-
-                if (transaction.type === 'income') {
-                    editTypeIncomeRadio.checked = true;
-                    editCategoryWrapper.style.display = 'none';
-                } else {
-                    editTypeExpenseRadio.checked = true;
-                    editCategoryInput.value = transaction.category;
-                    editCategoryWrapper.style.display = 'block';
-                }
-                
-                // Show the modal
-                editModalOverlay.classList.add('visible');
-            }
-
-            /**
-             * Close the edit modal
-             */
-            function closeEditModal() {
-                editModalOverlay.classList.remove('visible');
-            }
-
-            /**
-             * Handle submission of the edit form
-             * @param {Event} e
-             */
-            function handleEditSubmit(e) {
-                e.preventDefault();
-
-                // Get values from edit form
-                const id = parseInt(editTransactionIdInput.value);
-                const description = editDescriptionInput.value;
-                const amount = parseFloat(editAmountInput.value);
-                const date = editDateInput.value;
-                const type = editTypeIncomeRadio.checked ? 'income' : 'expense';
-                const category = (type === 'expense') ? editCategoryInput.value : 'N/A';
-
-                if (!description || !amount || !date) {
-                    alert('Please fill in all fields.');
-                    return;
-                }
-
-                // Find and update the transaction in the state
-                const transactionIndex = transactions.findIndex(t => t.id === id);
-                if (transactionIndex > -1) {
-                    transactions[transactionIndex] = { id, description, amount, date, type, category };
-                }
-
-                saveTransactions();
-                updateUI();
-                closeEditModal();
-            }
-
-            /**
-             * Toggle visibility of category input based on transaction type (for Edit Form)
-             */
-            function toggleEditCategory() {
-                if (editTypeIncomeRadio.checked) {
-                    editCategoryWrapper.style.display = 'none';
-                } else {
-                    editCategoryWrapper.style.display = 'block';
-                }
-            }
-
-
-            /**
-             * Helper function to format currency
-             * @param {number} amount
-             * @param {boolean} [useMinus=true] - Whether to show minus sign for negative numbers
-             */
-            function formatCurrency(amount, useMinus = true) {
-                const options = { style: 'currency', currency: 'USD' };
-                let formatted = new Intl.NumberFormat('en-US', options).format(Math.abs(amount));
-                
-                if (amount < 0 && useMinus) {
-                    formatted = '-' + formatted;
-                }
-                return formatted;
-            }
-
-            /**
-             * Toggle visibility of category input based on transaction type
-             */
-            function toggleCategory() {
-                if (typeIncomeRadio.checked) {
-                    categoryWrapper.style.display = 'none';
-                } else {
-                    categoryWrapper.style.display = 'block';
-
-                }
-            }
+            // --- EVENT LISTENERS ---
+            // Transaction Modal
+            addTransactionBtn.addEventListener('click', () => openTransactionModal());
+            transactionModalClose.addEventListener('click', closeTransactionModal);
+            transactionForm.addEventListener('submit', handleTransactionSubmit);
+            typeIncomeRadio.addEventListener('change', toggleExpenseFields);
+            typeExpenseRadio.addEventListener('change', toggleExpenseFields);
             
+            // Budget Modal
+            setBudgetsBtn.addEventListener('click', openBudgetModal);
+            budgetModalClose.addEventListener('click', closeBudgetModal);
+            budgetForm.addEventListener('submit', handleBudgetFormSubmit);
 
-            // --- Event Listeners ---
-            form.addEventListener('submit', handleFormSubmit);
-            budgetForm.addEventListener('submit', handleBudgetFormSubmit); 
-            typeIncomeRadio.addEventListener('change', toggleCategory);
-            typeExpenseRadio.addEventListener('change', toggleCategory);
-
-            // Edit Modal Listeners
-            editForm.addEventListener('submit', handleEditSubmit);
-            editModalCloseBtn.addEventListener('click', closeEditModal);
-            editModalOverlay.addEventListener('click', (e) => {
-                if (e.target === editModalOverlay) { // Only close if clicking the overlay itself
-                    closeEditModal();
-                }
-            });
-            editTypeIncomeRadio.addEventListener('change', toggleEditCategory);
-            editTypeExpenseRadio.addEventListener('change', toggleEditCategory);
-            
-            // NEW: Backup Listeners
+            // Import/Export
             exportDataBtn.addEventListener('click', handleExportData);
-            importDataBtn.addEventListener('click', () => {
-                // Trigger hidden file input
-                importFileInput.click();
-            });
+            importDataBtn.addEventListener('click', () => importFileInput.click());
             importFileInput.addEventListener('change', handleFileImport);
-
-            // --- Initialization ---
-            dateInput.value = new Date().toISOString().split('T')[0];
-            toggleCategory();
-            loadData(); // Load all data from localStorage and update UI
+            
+            // AI Modal
+            aiAnalysisButton.addEventListener('click', handleAiAnalysis);
+            aiModalClose.addEventListener('click', hideAiModal);
+            aiModal.addEventListener('click', (e) => e.target === aiModal && hideAiModal());
+            
+            // --- INITIALIZATION ---
+            loadData(); // Load data and update UI
         });
     </script>
 </body>
